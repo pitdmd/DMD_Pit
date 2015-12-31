@@ -88,7 +88,9 @@ OBJS= \
     obj/scrypt_mine.o \
     obj/scrypt-x86.o \
     obj/scrypt-x86_64.o \
-    obj/auxpow.o
+    obj/auxpow.o \
+    obj/reactors.o \
+    obj/reactorlist.o
 
 all: diamondd.exe
 

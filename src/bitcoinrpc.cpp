@@ -274,7 +274,8 @@ static const CRPCCommand vRPCCommands[] =
     { "getscrapeaddress",       &getscrapeaddress,       true,   false },
     { "listscrapeaddresses",    &listscrapeaddresses,    true,   false },
     { "setscrapeaddress",       &setscrapeaddress,       true,   true },
-    { "deletescrapeaddress",    &deletescrapeaddress,    true,   true }
+    { "deletescrapeaddress",    &deletescrapeaddress,    true,   true },
+    { "listreactordata",        &listreactordata,        true,   false }
 };
 
 CRPCTable::CRPCTable()

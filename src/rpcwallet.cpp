@@ -9,6 +9,7 @@
 #include "bitcoinrpc.h"
 #include "init.h"
 #include "base58.h"
+#include "reactors.h"
 
 using namespace json_spirit;
 using namespace std;
@@ -1952,4 +1953,49 @@ Value deletescrapeaddress(const Array& params, bool fHelp)
     }
 
     return pwalletMain->EraseScrapeAddress(strAddress);
+}
+
+Value listreactordata(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "listreactordata\n"
+            "List the data regarding a given reactor address (only lists\n"
+            "valid addresses found in wallet).");
+
+    string strAddress = params[0].get_str();
+    CBitcoinAddress address(strAddress);
+
+    if (!IsMine(*pwalletMain, address.Get()))
+        throw runtime_error("Address must be in wallet.");
+
+    string reactordbfile = GetReactorDBFile();
+    if (!CReactorDB(reactordbfile).CheckReactorAddr(strAddress))
+        throw runtime_error("Address is not a valid reactor address.");
+
+    int64 reactorStakeValue;
+    unsigned int valid_starting;
+    unsigned int valid_until;
+    CScript scriptReactorAddress;
+    scriptReactorAddress.SetDestination(address.Get());
+    if (!CReactorDB(reactordbfile).IsReactor(reactordbfile, scriptReactorAddress, reactorStakeValue, valid_starting, valid_until))
+        throw runtime_error("Address is not a valid reactor address.");
+
+    Object obj;
+    obj.push_back(Pair("Address", strAddress));
+    if (reactorStakeValue == 15000) {
+        obj.push_back(Pair("Value 1", 3000));
+        obj.push_back(Pair("Value 2", (int)reactorStakeValue));
+    } else {
+        obj.push_back(Pair("Value", (int)reactorStakeValue));
+    }
+    obj.push_back(Pair("Valid starting", (int)valid_starting));
+
+    if (valid_until == (unsigned int)-1) {
+        obj.push_back(Pair("Expires", "never"));
+    } else {
+        obj.push_back(Pair("Expires", (int)valid_until));
+    }
+
+    return obj;
 }

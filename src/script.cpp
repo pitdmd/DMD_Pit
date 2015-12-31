@@ -238,7 +238,8 @@ const char* GetOpName(opcodetype opcode)
     case OP_NOP9                   : return "OP_NOP9";
     case OP_NOP10                  : return "OP_NOP10";
 
-
+    // Reactors
+    case OP_REACTOR                : return "OP_REACTOR";
 
     // template matching params
     case OP_PUBKEYHASH             : return "OP_PUBKEYHASH";
