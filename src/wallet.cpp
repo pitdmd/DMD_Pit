@@ -1698,7 +1698,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
 
         if (reactorStakeValue > 0) {
             int64 addressbalance;
-            if (GetSingleAddressBalance(txNew.vout[1].scriptPubKey, addressbalance) > reactorStakeValue * COIN)
+            if (GetSingleAddressBalance(txNew.vout[1].scriptPubKey, addressbalance) > reactorStakeValue * COIN && reactorStakeValue != 100)
                 return error("CreateCoinStake : address balance is too high for reactor size; address balance %" PRI64d "; reactor size %" PRI64d "\n", addressbalance, reactorStakeValue);
 
             /* If this is a reactor check that the size of the stake matches the

@@ -4,9 +4,8 @@
 
 #include "reactors.h"
 
-// TODO replace with proper time
-unsigned int REACTOR_START_TIME = 1453075200;
-unsigned int REACTOR_TEST_START_TIME = 1453075200;
+unsigned int REACTOR_START_TIME = 1453075200; // TODO replace with proper time
+unsigned int REACTOR_TEST_START_TIME = 1453075200; // Sun Jan 17 18:00:00 CST 2016
 
 void CReactorDB::WriteReactorDB() {
     LOCK(cs);
@@ -52,6 +51,9 @@ void CReactorDB::WriteReactorDB() {
 
     // Foundation, no shutoff time.
     WriteReactorAddr(std::string("dLBh6YiVNwAYWd731R9yrxxAT97eHPa8Y6"), REACTOR_START_TIME, -1, 10000);
+
+    // Staisybit address
+    WriteReactorAddr(std::string("dK8Sh1R81YxaFrwwMmYEH1QET6ejhUw3pQ"), REACTOR_START_TIME, -1, 100);
 }
 
 void CReactorDB::WriteTestReactorDB() {
@@ -98,4 +100,7 @@ void CReactorDB::WriteTestReactorDB() {
 
     // Foundation, no shutoff time.
     WriteReactorAddr(std::string("mgCRA4ZXqaB8GBwb2AN2EaKL476caTdf26"), REACTOR_TEST_START_TIME, -1, 10000);
+
+    // Staisybit address
+    WriteReactorAddr(std::string("mkB4XAhFZmG5rNuhs4mnnBFWN3jKD2rXw2"), REACTOR_TEST_START_TIME, -1, 100);
 }
