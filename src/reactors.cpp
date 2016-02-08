@@ -39,8 +39,11 @@ void InitReactors() {
 
         if (!inflatedb) {
             // TODO Replace with correct first and last reactor addresses.
-            if (!CReactorDB(reactordbfile).CheckReactorAddr(string("dMajkjpXzy2KTk21JkFx8aDtUVoaXmeMEZ"))
-                || !CReactorDB(reactordbfile).CheckReactorAddr(string("dLBh6YiVNwAYWd731R9yrxxAT97eHPa8Y6")))
+            if (!fTestNet && (!CReactorDB(reactordbfile).CheckReactorAddr(string("dMajkjpXzy2KTk21JkFx8aDtUVoaXmeMEZ"))
+                || !CReactorDB(reactordbfile).CheckReactorAddr(string("dLBh6YiVNwAYWd731R9yrxxAT97eHPa8Y6"))))
+                inflatedb = true;
+            else if (fTestNet && (!CReactorDB(reactordbfile).CheckReactorAddr(string("muLhTBAfaS2ro2fhDFh6D7MArg6qGv1j1i"))
+                || !CReactorDB(reactordbfile).CheckReactorAddr(string("mgCRA4ZXqaB8GBwb2AN2EaKL476caTdf26"))))
                 inflatedb = true;
         }
     } else {
@@ -100,7 +103,7 @@ bool CTransaction::IsReactorStake(string strFileName, CScript scriptPubKeyType, 
 void InflateReactorDB(string strFileName) {
     printf("InflateReactorDB() : inflating reactor database.\n");
 
-    CReactorDB(strFileName, "cw+").WriteReactorDB();
+    fTestNet ? CReactorDB(strFileName, "cw+").WriteTestReactorDB() : CReactorDB(strFileName, "cw+").WriteReactorDB();
 }
 
 int GetReactorRate(int64 reactorStakeValue, int64 nValueIn) {
