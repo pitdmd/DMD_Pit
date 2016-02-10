@@ -107,16 +107,19 @@ void InflateReactorDB(string strFileName) {
 }
 
 int GetReactorRate(int64 reactorStakeValue, int64 nValueIn) {
+    if (reactorStakeValue == 100)
+        return 1.05;
+
     if (reactorStakeValue == 1000 || reactorStakeValue == 10000)
         return 2;
 
     /* We store the max value of the Legendaries in the database and override
      * the rate for 3000 coin stakes here. */
-    if (reactorStakeValue == 15000 && nValueIn == 3000)
+    if (reactorStakeValue == 15000 && nValueIn == 3000 * COIN)
         return 2;
 
-    if (reactorStakeValue == 15000 && nValueIn == 15000)
-        return 1.5;
+    if (reactorStakeValue == 15000 && nValueIn == 15000 * COIN)
+        return 1.25;
 
     return 0;
 }
