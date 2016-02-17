@@ -387,7 +387,7 @@ Value getworkaux(const Array& params, bool fHelp) {
             pow.SetMerkleBranch(pblock);
             pow.nChainIndex = nChainIndex;
             pow.parentBlock = *pblock;
-            CDataStream ss(SER_GETHASH | SER_BLOCKHEADERONLY, 0);
+            CDataStream ss(SER_GETHASH | SER_BLOCKHEADERONLY, PROTOCOL_VERSION);
             ss << pow;
             Object result;
             result.push_back(Pair("auxpow", HexStr(ss.begin(), ss.end())));
@@ -403,7 +403,7 @@ Value getworkaux(const Array& params, bool fHelp) {
             {
                 Object result;
                 result.push_back(Pair("aux", HexStr(vchAux.begin(), vchAux.end())));
-                result.push_back(Pair("hash", pblock->GetHash().GetHex()));
+                result.push_back(Pair("hash", pblock->GetHashGroestl().GetHex()));
                 return result;
             }
         }
@@ -487,9 +487,15 @@ Value getauxblock(const Array& params, bool fHelp)
         uint256 hash;
         hash.SetHex(params[0].get_str());
         vector<unsigned char> vchAuxPow = ParseHex(params[1].get_str());
-        CDataStream ss(vchAuxPow, SER_GETHASH | SER_BLOCKHEADERONLY, 0);
+        CDataStream ss(vchAuxPow, SER_GETHASH | SER_BLOCKHEADERONLY, PROTOCOL_VERSION);
         CAuxPow* pow = new CAuxPow();
-        ss >> *pow;
+        try {
+            ss >> *pow;
+        }
+        catch(std::exception &e) {
+            throw(JSONRPCError(RPC_DESERIALIZATION_ERROR, "AuxPoW decode failed"));
+        }
+
         if (!mapNewBlock.count(hash))
             return ::error("getauxblock() : block not found");
 
