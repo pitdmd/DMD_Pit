@@ -108,7 +108,7 @@ CScript MakeCoinbaseWithAux(unsigned int nHeight, unsigned int nExtraNonce,
 
     // Push OP_2 just in case we want versioning later
     /* BIP34: v2 coin base must start with nHeight */
-    return CScript() << nHeight << CBigNum(nExtraNonce) << COINBASE_FLAGS << OP_2 << vchAuxWithHeader;
+    return(((CScript() << nHeight << CBigNum(nExtraNonce)) + COINBASE_FLAGS) << OP_2 << vchAuxWithHeader);
 }
 
 
