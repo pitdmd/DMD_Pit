@@ -129,7 +129,7 @@ bool LoadExternalBlockFile(FILE* fileIn);
 void GenerateBitcoins(bool fGenerate, CWallet* pwallet);
 CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake=false);
 void IncrementExtraNonce(CBlock* pblock, CBlockIndex* pindexPrev, unsigned int& nExtraNonce);
-void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash1);
+void FormatDataBuffer(CBlock *pblock, unsigned int *pdata);
 bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey);
 int64 GetProofOfWorkReward(int nHeight, int64 nFees, uint256 prevHash);
 int64 GetProofOfStakeReward(int64 nCoinAge, unsigned int nBits, unsigned int nTime, int nHeight);

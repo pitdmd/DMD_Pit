@@ -126,9 +126,7 @@ Value getwork(const Array& params, bool fHelp)
         throw runtime_error(
             "getwork [data]\n"
             "If [data] is not specified, returns formatted hash data to work on:\n"
-            "  \"midstate\" : precomputed hash state after hashing the first half of the data (DEPRECATED)\n" // deprecated
             "  \"data\" : block data\n"
-            "  \"hash1\" : formatted hash buffer for second hash (DEPRECATED)\n" // deprecated
             "  \"target\" : little endian hash target\n"
             "If [data] is specified, tries to solve the block and returns true if it was successful.");
 
@@ -191,18 +189,13 @@ Value getwork(const Array& params, bool fHelp)
         // Save
         mapNewBlock[pblock->hashMerkleRoot] = make_pair(pblock, pblock->vtx[0].vin[0].scriptSig);
 
-        // Pre-build hash buffers
-        char pmidstate[32];
         char pdata[128];
-        char phash1[64];
-        FormatHashBuffers(pblock, pmidstate, pdata, phash1);
+        FormatDataBuffer(pblock, (uint *) pdata);
 
         uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
 
         Object result;
-        result.push_back(Pair("midstate", HexStr(BEGIN(pmidstate), END(pmidstate)))); // deprecated
         result.push_back(Pair("data",     HexStr(BEGIN(pdata), END(pdata))));
-        result.push_back(Pair("hash1",    HexStr(BEGIN(phash1), END(phash1)))); // deprecated
         result.push_back(Pair("target",   HexStr(BEGIN(hashTarget), END(hashTarget))));
         return result;
     }
@@ -249,9 +242,7 @@ Value getworkaux(const Array& params, bool fHelp) {
             "<chain-index> is the aux chain index in the aux chain merkle tree\n"
             "<branch> is the optional merkle branch of the aux chain\n"
             "If <data> is not specified, returns formatted hash data to work on:\n"
-            "  \"midstate\" : precomputed hash state after hashing the first half of the data\n"
             "  \"data\" : block data\n"
-            "  \"hash1\" : formatted hash buffer for second hash\n"
             "  \"target\" : little endian hash target\n"
             "If <data> is specified and 'submit', tries to solve the block for this (parent) chain and returns true if it was successful."
             "If <data> is specified and empty first argument, returns the aux merkle root, with size and nonce."
@@ -315,18 +306,13 @@ Value getworkaux(const Array& params, bool fHelp) {
         // Save
         mapNewBlock[pblock->hashMerkleRoot] = make_pair(pblock, nExtraNonce);
 
-        // Prebuild hash buffers
-        char pmidstate[32];
         char pdata[128];
-        char phash1[64];
-        FormatHashBuffers(pblock, pmidstate, pdata, phash1);
+        FormatDataBuffer(pblock, (uint *) pdata);
 
         uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
 
         Object result;
-        result.push_back(Pair("midstate", HexStr(BEGIN(pmidstate), END(pmidstate))));
         result.push_back(Pair("data",     HexStr(BEGIN(pdata), END(pdata))));
-        result.push_back(Pair("hash1",    HexStr(BEGIN(phash1), END(phash1))));
         result.push_back(Pair("target",   HexStr(BEGIN(hashTarget), END(hashTarget))));
         return result;
     }
@@ -467,7 +453,7 @@ Value getauxblock(const Array& params, bool fHelp)
             pblock->SetAuxPow(new CAuxPow());
 
             // Save
-            mapNewBlock[pblock->GetHash()] = pblock;
+            mapNewBlock[pblock->GetHashGroestl()] = pblock;
 
             if (!pblock)
                 throw JSONRPCError(-7, "Out of memory");
@@ -478,7 +464,7 @@ Value getauxblock(const Array& params, bool fHelp)
 
         Object result;
         result.push_back(Pair("target",   HexStr(BEGIN(hashTarget), END(hashTarget))));
-        result.push_back(Pair("hash", pblock->GetHash().GetHex()));
+        result.push_back(Pair("hash", pblock->GetHashGroestl().GetHex()));
         result.push_back(Pair("chainid", pblock->GetChainID()));
         return result;
     }
