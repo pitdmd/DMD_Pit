@@ -12,8 +12,8 @@ BOOST_AUTO_TEST_CASE(reactor_validity)
 {
     CScript scriptPubKeyAddress;
     CScript scriptReactorOP;
-    string strReactorValid = "dMajkjpXzy2KTk21JkFx8aDtUVoaXmeMEZ";
-    string strReactorValid2 = "dcF2DnzGyi7XdPiHFfUK8eZS2ad4Tfn3jt";
+    string strReactorValid = "dMd36o2f1xpRqjbhtJzzMQKFCnrPmkY35W";
+    string strReactorValid2 = "dMd36oZL8CnJKVbsUxtaGLzMzyofKSFqMn";
     string strReactorInvalid = "dVSWVAnKL4BzVBAAvVDbatWfKeEpxXnLXT";
 
     scriptReactorOP << OP_REACTOR;
@@ -56,7 +56,7 @@ BOOST_AUTO_TEST_CASE(reactor_validity)
     addr = CBitcoinAddress(strReactorValid);
     scriptPubKeyAddress.clear();
     scriptPubKeyAddress.SetDestination(addr.Get());
-    BOOST_CHECK(!tx.IsReactorStake("reactors.dat", scriptReactorOP, scriptPubKeyAddress, REACTOR_START_TIME + 60 * 60 * 24 * (365 / 2), 1000 * COIN, 0, 0, 0, 0));
+    BOOST_CHECK(!tx.IsReactorStake("reactors.dat", scriptReactorOP, scriptPubKeyAddress, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000 * COIN, 0, 0, 0, 0));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

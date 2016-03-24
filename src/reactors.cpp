@@ -76,19 +76,11 @@ bool CTransaction::IsReactorStake(string strFileName, CScript scriptPubKeyType, 
 
         /* If this is a reactor check that the size of the stake matches the
          * requirements of the given reactor.*/
-        if (reactorStakeValue == 3000 || reactorStakeValue == 15000) {
-            if (nValueIn < (reactorStakeValue * COIN))
-                return DoS(100, error("IsReactorStake() : nValueIn doesn't meet requirement for reactor stake; credit %" PRI64d "; reactor size %d or %d", nValueIn, 3000, 15000));
+        if (nValueIn < (reactorStakeValue * COIN))
+            return DoS(100, error("IsReactorStake() : credit doesn't meet requirement for reactor stake; credit %" PRI64d "; reactor size %" PRI64d "", nValueIn, reactorStakeValue));
 
-            if (nValueIn > (reactorStakeValue * COIN))
-                return DoS(100, error("IsReactorStake() : nValueIn exceeds value of reactor; credit %" PRI64d "; reactor size %d or %d", nValueIn, 3000, 15000));
-        } else {
-            if (nValueIn < (reactorStakeValue * COIN))
-                return DoS(100, error("IsReactorStake() : credit doesn't meet requirement for reactor stake; credit %" PRI64d "; reactor size %" PRI64d "", nValueIn, reactorStakeValue));
-
-            if (nValueIn > (reactorStakeValue * COIN))
-                return DoS(100, error("IsReactorStake() : credit exceeds value of reactor; credit %" PRI64d "; reactor size %" PRI64d "", nValueIn, reactorStakeValue));
-        }
+        if (nValueIn > (reactorStakeValue * COIN))
+            return DoS(100, error("IsReactorStake() : credit exceeds value of reactor; credit %" PRI64d "; reactor size %" PRI64d "", nValueIn, reactorStakeValue));
 
         if (nStakeReward > GetProofOfStakeReward(nCoinAge, nBits, nTime, nHeight, GetReactorRate(reactorStakeValue, nValueIn)) - GetMinFee() + MIN_TX_FEE)
             return DoS(100, error("IsReactorStake() : %s stake reward exceeded", GetHash().ToString().substr(0, 10).c_str()));

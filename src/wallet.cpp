@@ -1703,19 +1703,11 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
 
             /* If this is a reactor check that the size of the stake matches the
              * requirements of the given reactor.*/
-            if (reactorStakeValue == 3000 || reactorStakeValue == 15000) {
-                if (nCredit < (reactorStakeValue * COIN))
-                    return error("CreateCoinStake : credit doesn't meet requirement for reactor stake; credit %" PRI64d "; reactor size %d or %d\n", nCredit, 3000, 15000);
+            if (nCredit < (reactorStakeValue * COIN))
+                return error("CreateCoinStake : credit doesn't meet requirement for reactor stake; credit %" PRI64d "; reactor size %" PRI64d "\n", nCredit, reactorStakeValue);
 
-                if (nCredit > (reactorStakeValue * COIN))
-                    return error("CreateCoinStake : credit exceeds value of reactor; credit %" PRI64d "; reactor size %d or %d\n", nCredit, 3000, 15000);
-            } else {
-                if (nCredit < (reactorStakeValue * COIN))
-                    return error("CreateCoinStake : credit doesn't meet requirement for reactor stake; credit %" PRI64d "; reactor size %" PRI64d "\n", nCredit, reactorStakeValue);
-
-                if (nCredit > (reactorStakeValue * COIN))
-                    return error("CreateCoinStake : credit exceeds value of reactor; credit %" PRI64d "; reactor size %" PRI64d "\n", nCredit, reactorStakeValue);
-            }
+            if (nCredit > (reactorStakeValue * COIN))
+                return error("CreateCoinStake : credit exceeds value of reactor; credit %" PRI64d "; reactor size %" PRI64d "\n", nCredit, reactorStakeValue);
         }
 
         int64 nReward = GetProofOfStakeReward(nCoinAge, nBits, txNew.nTime, pIndex0->nHeight, GetReactorRate(reactorStakeValue, nCredit));
