@@ -52,6 +52,9 @@ static const int nTestStage4 = 440; /* Testnet: enable merged mining */
 /* Testnet: SHA-256 transaction hashing after 8-Feb-2016 15:00 UTC */
 static const unsigned int nTestTxSwitch = 1454943600;
 
+/* Livenet: SHA-256 transaction hashing and fixed min. stake age */
+static const unsigned int nLiveTimeSwitch = ~0U;
+
 inline bool MoneyRange(int64 nValue) { return (nValue >= 0 && nValue <= MAX_MONEY); }
 // Threshold for nLockTime: below this value it is interpreted as block number, otherwise as UNIX timestamp.
 static const unsigned int LOCKTIME_THRESHOLD = 500000000; // Tue Nov  5 00:53:20 1985 UTC
@@ -79,6 +82,7 @@ extern std::set<std::pair<COutPoint, unsigned int> > setStakeSeen;
 extern uint256 hashGenesisBlock;
 extern CBlockIndex* pindexGenesisBlock;
 extern unsigned int nStakeMinAge;
+extern unsigned int nStakeMinAgeFixed;
 extern int nCoinbaseMaturity;
 extern int nBestHeight;
 extern CBigNum bnBestChainTrust;

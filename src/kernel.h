@@ -14,6 +14,9 @@ extern unsigned int nModifierInterval;
 // ratio of group interval length between the last group and the first group
 static const int MODIFIER_INTERVAL_RATIO = 3;
 
+/* Selects the appropriate minimal stake age */
+uint GetStakeMinAge(uint nStakeTime);
+
 // Compute the hash modifier for proof-of-stake
 bool ComputeNextStakeModifier(const CBlockIndex* pindexPrev, uint64& nStakeModifier, bool& fGeneratedStakeModifier);
 
