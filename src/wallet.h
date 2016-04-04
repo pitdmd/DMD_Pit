@@ -185,6 +185,8 @@ public:
     bool CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int64 nSearchInterval, CTransaction& txNew);
     std::string SendMoney(CScript scriptPubKey, int64 nValue, CWalletTx& wtxNew, bool fAskFee=false, std::string strTxComment = "");
     std::string SendMoneyToDestination(const CTxDestination &address, int64 nValue, CWalletTx& wtxNew, bool fAskFee=false, std::string strTxComment = "");
+    bool GetSingleAddressBalance(CTxDestination address, int64 &balance);
+    bool GetSingleAddressBalance(CScript scriptPubKey, int64 &balance);
 
     bool NewKeyPool();
     bool TopUpKeyPool();

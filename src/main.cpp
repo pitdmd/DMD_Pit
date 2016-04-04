@@ -12,6 +12,7 @@
 #include "ui_interface.h"
 #include "kernel.h"
 #include "scrypt_mine.h"
+#include "reactors.h"
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
@@ -997,10 +998,11 @@ int64 GetProofOfWorkReward(int nHeight, int64 nFees, uint256 prevHash)
 
 // miner's coin stake reward based on nBits and coin age spent (coin-days)
 // simple algorithm, not depend on the diff
-int64 GetProofOfStakeReward(int64 nCoinAge, unsigned int nBits, unsigned int nTime, int nHeight)
+int64 GetProofOfStakeReward(int64 nCoinAge, unsigned int nBits, unsigned int nTime, int nHeight, int reactorRate)
 {
     int64 nRewardCoinYear;
     int64 nSubsidy = 0;
+
     if (totalCoin > VALUE_CHANGE || fTestNet)
     {
         nRewardCoinYear = MAX_MINT_PROOF_OF_STAKE;
@@ -1060,6 +1062,11 @@ int64 GetProofOfStakeReward(int64 nCoinAge, unsigned int nBits, unsigned int nTi
 
         nRewardCoinYear = bnUpperBound.getuint64();
         nRewardCoinYear = min((nRewardCoinYear / CENT) * CENT, MAX_MINT_PROOF_OF_STAKE);
+
+        /* If the reactor rate is greater than 0 adjust the nRewardCoinYear by
+         * the given rate. */
+        if (reactorRate > 0)
+            nRewardCoinYear = nRewardCoinYear * (reactorRate * CENT);
 
         nSubsidy = nCoinAge * 33 / (365 * 33 + 8) * nRewardCoinYear;
         if (fDebug && GetBoolArg("-printcreation"))
@@ -1535,9 +1542,16 @@ bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs,
             uint64 nCoinAge;
             if (!GetCoinAge(txdb, nCoinAge))
                 return error("ConnectInputs() : %s unable to get coin age for coinstake", GetHash().ToString().substr(0,10).c_str());
-            int64 nStakeReward = GetValueOut() - nValueIn;
-            if (nStakeReward > GetProofOfStakeReward(nCoinAge, pindexBlock->nBits, nTime, pindexBlock->nHeight) - GetMinFee() + MIN_TX_FEE)
-                return DoS(100, error("ConnectInputs() : %s stake reward exceeded", GetHash().ToString().substr(0,10).c_str()));
+
+            // If vout[0] is not empty check if this is a reactor stake.
+            if (!vout[0].IsEmpty()) {
+                // OP_REACTOR is stored in vout[0] destination is stored in vout[1]
+                return IsReactorStake(GetReactorDBFile(), vout[0].scriptPubKey, vout[1].scriptPubKey, nTime, nValueIn, GetValueOut(), nCoinAge, pindexBlock->nBits, pindexBlock->nHeight);
+            } else {
+                int64 nStakeReward = GetValueOut() - nValueIn;
+                if (nStakeReward > GetProofOfStakeReward(nCoinAge, pindexBlock->nBits, nTime, pindexBlock->nHeight) - GetMinFee() + MIN_TX_FEE)
+                    return DoS(100, error("ConnectInputs() : %s stake reward exceeded", GetHash().ToString().substr(0,10).c_str()));
+            }
         }
         else
         {
@@ -2040,7 +2054,7 @@ bool CBlock::SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew)
 // ppcoin: total coin age spent in transaction, in the unit of coin-days.
 // Only those coins meeting minimum age requirement counts. As those
 // transactions not in main chain are not currently indexed so we
-// might not find out about their coin age. Older transactions are 
+// might not find out about their coin age. Older transactions are
 // guaranteed to be in main chain by sync-checkpoint. This rule is
 // introduced to help nodes establish a consistent view of the coin
 // age (trust score) of competing branches.
@@ -2183,9 +2197,9 @@ bool CBlock::AddToBlockIndex(unsigned int nFile, unsigned int nBlockPos)
 }
 
 // Start accepting AUX POW at this block
-// 
+//
 // Even if we do not accept AUX POW ourselves, we can always be the parent chain.
- 
+
 int GetAuxPowStartBlock() {
     if(fTestNet)
       return(nTestStage4);
@@ -2522,7 +2536,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
                 pblock->print();
                 printf("\n");
             }
-            // danbi: Only refuse this block if time distance between the last sync checkpoint 
+            // danbi: Only refuse this block if time distance between the last sync checkpoint
             // and the block's time is less than the checkpoints max span
             if (deltaTime < CHECKPOINT_MAX_SPAN)
                 return error("ProcessBlock() : block with too little %s", pblock->IsProofOfStake()? "proof-of-stake" : "proof-of-work");
@@ -3530,7 +3544,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                     if (inv.hash == pfrom->hashContinue)
                     {
                         // ppcoin: send latest proof-of-work block to allow the
-                        // download node to accept as orphan (proof-of-stake 
+                        // download node to accept as orphan (proof-of-stake
                         // block might be rejected by stake connection check)
                         vector<CInv> vInv;
                         vInv.push_back(CInv(MSG_BLOCK, GetLastBlockIndex(pindexBest, false)->GetBlockHash()));
@@ -4200,7 +4214,7 @@ public:
 uint64 nLastBlockTx = 0;
 uint64 nLastBlockSize = 0;
 int64 nLastCoinStakeSearchInterval = 0;
- 
+
 // We want to sort transactions by priority and fee, so:
 typedef boost::tuple<double, double, CTransaction*> TxPriority;
 class TxPriorityCompare
@@ -4587,7 +4601,7 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
     uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
 
     if(pblock->IsProofOfWork()) {
-        CAuxPow *auxpow = pblock->auxpow.get();     
+        CAuxPow *auxpow = pblock->auxpow.get();
 
         if(auxpow != NULL) {
             if(!auxpow->Check(hash, pblock->GetChainID()))

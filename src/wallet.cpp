@@ -13,6 +13,7 @@
 #include "kernel.h"
 #include "auxpow.h"
 #include "coincontrol.h"
+#include "reactors.h"
 
 #include <boost/algorithm/string.hpp>
 
@@ -1506,10 +1507,10 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
 
     txNew.vin.clear();
     txNew.vout.clear();
-    // Mark coin stake transaction
-    CScript scriptEmpty;
-    scriptEmpty.clear();
-    txNew.vout.push_back(CTxOut(0, scriptEmpty));
+
+    /* Wait to mark non-reactor stakes until after we know what coins are
+     * staking. */
+
     // Choose coins to use
     int64 nBalance = GetBalance();
     int64 nReserveBalance = 0;
@@ -1529,6 +1530,9 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
 
     int64 nCredit = 0;
     CScript scriptPubKeyKernel;
+
+    int64 reactorStakeValue;
+
     BOOST_FOREACH(PAIRTYPE(const CWalletTx*, unsigned int) pcoin, setCoins)
     {
         CTxDB txdb("r");
@@ -1599,6 +1603,35 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
                     scriptPubKeyOut = scriptPubKeyKernel;
 
                 txNew.nTime -= n;
+                /* We found a kernel so we can check if it's address matches a
+                 * reactor address. Do this now, before splitting the stake so
+                 * that reactors don't split their stake and before adding the
+                 * PubKeyOut to the transaction */
+                CScript scriptStake;
+                unsigned int valid_starting;
+                unsigned int valid_until;
+                string reactordbfile = GetReactorDBFile();
+                /* Check if the staking address is a reactor and if it is active
+                 * and if so mark the stake as a reactor stake (otherwise mark
+                 * it as a standard stake); if it is a reactor stake we also
+                 * change the nComebineThreshold to be the size of the reactor.
+                 *
+                 * We pass the DB file because we run CheckReactorAddr() from
+                 * within IsReactor(), this allows tests to be ran on a mockdb
+                 * instead of in the diamond directory on the system. */
+                if (CReactorDB(reactordbfile).IsReactor(reactordbfile, scriptPubKeyOut, reactorStakeValue, valid_starting, valid_until)) {
+                    // Check that the reactor is active.
+                    if (txNew.nTime >= valid_starting && (txNew.nTime < valid_until || valid_until == (unsigned int)-1)) {
+                        scriptStake << OP_REACTOR;
+                        nCombineThreshold = reactorStakeValue * COIN;
+                    } else {
+                        /* Just make sure the script being pushed to vout is
+                         * blank to mark the stake as a standard stake. */
+                         scriptStake.clear();
+                    }
+                    txNew.vout.push_back(CTxOut(0, scriptStake));
+                }
+
                 txNew.vin.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
                 nCredit += pcoin.first->vout[pcoin.second].nValue;
 
@@ -1606,7 +1639,8 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
 
                 vwtxPrev.push_back(pcoin.first);
                 txNew.vout.push_back(CTxOut(0, scriptPubKeyOut));
-                if (block.GetBlockTime() + nStakeSplitAge > txNew.nTime)
+                // Don't split the stake on reactors.
+                if (block.GetBlockTime() + nStakeSplitAge > txNew.nTime && reactorStakeValue == 0)
                     txNew.vout.push_back(CTxOut(0, scriptPubKeyOut)); //split stake
 
                 if (fDebug && GetBoolArg("-printcoinstake"))
@@ -1661,7 +1695,22 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
 
         if (!txNew.GetCoinAge(txdb, nCoinAge))
             return error("CreateCoinStake : failed to calculate coin age");
-        int64 nReward = GetProofOfStakeReward(nCoinAge, nBits, txNew.nTime, pIndex0->nHeight);
+
+        if (reactorStakeValue > 0) {
+            int64 addressbalance;
+            if (GetSingleAddressBalance(txNew.vout[1].scriptPubKey, addressbalance) > ((reactorStakeValue * COIN * 2) - 1 * COIN) && reactorStakeValue != 100)
+                return error("CreateCoinStake : address balance is too high for reactor size; address balance %" PRI64d "; reactor size %" PRI64d "\n", addressbalance, reactorStakeValue);
+
+            /* If this is a reactor check that the size of the stake matches the
+             * requirements of the given reactor.*/
+            if (nCredit < (reactorStakeValue * COIN))
+                return error("CreateCoinStake : credit doesn't meet requirement for reactor stake; credit %" PRI64d "; reactor size %" PRI64d "\n", nCredit, reactorStakeValue);
+
+            if (nCredit > (reactorStakeValue * COIN))
+                return error("CreateCoinStake : credit exceeds value of reactor; credit %" PRI64d "; reactor size %" PRI64d "\n", nCredit, reactorStakeValue);
+        }
+
+        int64 nReward = GetProofOfStakeReward(nCoinAge, nBits, txNew.nTime, pIndex0->nHeight, GetReactorRate(reactorStakeValue, nCredit));
 
         /* Check the staking address against the scrape addresses in the
          * walletdb and see if it has a scrape address for it, if it does
@@ -2112,6 +2161,33 @@ int64 CWallet::GetOldestKeyPoolTime()
         return GetTime();
     ReturnKey(nIndex);
     return keypool.nTime;
+}
+
+/* Return false if the address balance being looked up is not an address in this
+ * wallet. */
+bool CWallet::GetSingleAddressBalance(CTxDestination address, int64 &balance)
+{
+    std::map<CTxDestination, int64> addressbalances = GetAddressBalances();
+    /* If the address is not ours it won't be in the addressbalances and
+     * std::map::at will throw an out_of_range exception. If thrown, catch it
+     * and return false.*/
+    try {
+        balance = addressbalances.at(address);
+        return true;
+    } catch (const std::out_of_range &oor) {
+        return false;
+    }
+}
+
+/* Overload for the above that allows a CScript instead of CTxDestination.
+ * Just return the above if an address is extracted from the key. */
+bool CWallet::GetSingleAddressBalance(CScript scriptPubKey, int64 &balance)
+{
+    CTxDestination addr;
+    if(!ExtractDestination(scriptPubKey, addr))
+        return false;
+
+    return GetSingleAddressBalance(addr, balance);
 }
 
 std::map<CTxDestination, int64> CWallet::GetAddressBalances()

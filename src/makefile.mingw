@@ -9,11 +9,11 @@ INCLUDEPATHS= \
  -I"C:\deps\boost_1_55_0" \
  -I"C:\deps\db-4.8.30.NC\build_unix" \
  -I"C:\deps\openssl-1.0.1e\include
- 
+
 LIBPATHS= \
  -L"C:\deps\boost_1_55_0\stage/lib" \
  -L"C:\deps\db-4.8.30.NC\build_unix" \
- -L"C:\deps\openssl-1.0.1e" 
+ -L"C:\deps\openssl-1.0.1e"
 
 LIBS= \
  -l boost_system-mgw45-mt-d-1_55 \
@@ -84,7 +84,9 @@ OBJS= \
     obj/scrypt_mine.o \
     obj/scrypt-x86.o \
     obj/scrypt-x86_64.o \
-    obj/auxpow.o
+    obj/auxpow.o \
+    obj/reactors.o \
+    obj/reactorlist.o
 
 all: diamondd.exe
 
