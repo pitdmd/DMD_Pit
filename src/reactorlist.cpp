@@ -4,7 +4,7 @@
 
 #include "reactors.h"
 
-unsigned int REACTOR_START_TIME = 1453075200; // TODO replace with proper time
+unsigned int REACTOR_START_TIME = 1460149200; // Fri, 08 Apr 2016 21:00:00 GMT
 unsigned int REACTOR_TEST_START_TIME = 1453075200; // Sun Jan 17 18:00:00 CST 2016
 
 void CReactorDB::WriteReactorDB() {
