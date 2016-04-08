@@ -636,7 +636,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
 	result.push_back(Pair("transactions", transactions));
 	result.push_back(Pair("coinbaseaux", aux));
         if((fTestNet && (pindexPrev->nHeight + 1 < nTestStage1)) ||
-          (!fTestNet && (totalCoin > VALUE_CHANGE))) {
+          (!fTestNet && ((totalCoin > VALUE_CHANGE) && (pindexPrev->nHeight + 1 < nLiveFork1)))) {
 	    result.push_back(Pair("coinbasevalue", (int64_t)pblock->vtx[0].vout[0].nValue +
               (int64_t)pblock->vtx[0].vout[1].nValue));
 	} else {

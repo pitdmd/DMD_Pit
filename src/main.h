@@ -52,6 +52,8 @@ static const int nTestStage4 = 440; /* Testnet: enable merged mining */
 /* Testnet: SHA-256 transaction hashing after 8-Feb-2016 15:00 UTC */
 static const unsigned int nTestTxSwitch = 1454943600;
 
+static const int nLiveFork1 = 1486800; /* Livenet: cumulative hard fork */
+
 /* Livenet: SHA-256 transaction hashing and fixed min. stake age */
 static const unsigned int nLiveTimeSwitch = ~0U;
 

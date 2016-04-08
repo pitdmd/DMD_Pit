@@ -1241,8 +1241,10 @@ unsigned int GetNextTargetRequired_v2(const CBlockIndex* pindexLast, bool fProof
 
     /* Disable legacy PoW block signature */
     if(fSignWorkBlock) {
-        if(fTestNet && (pindexPrev->nHeight + 1 >= nTestStage2))
-          fSignWorkBlock = false;
+        if((fTestNet && (pindexPrev->nHeight + 1 >= nTestStage2)) ||
+          (!fTestNet && (pindexPrev->nHeight + 1 >= nLiveFork1))) {
+            fSignWorkBlock = false;
+        }
     }
 
     return bnNew.GetCompact();
@@ -1774,7 +1776,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
 
     bool fContribution = false;
     if((fTestNet && (nPrevHeight + 1 < nTestStage1)) ||
-      (!fTestNet && (totalCoin > VALUE_CHANGE)))
+      (!fTestNet && ((totalCoin > VALUE_CHANGE) && (nPrevHeight + 1 < nLiveFork1))))
       fContribution = true;
 
     if(IsProofOfWork()) {
@@ -2366,7 +2368,8 @@ bool CBlock::AcceptBlock()
     int nHeight = pindexPrev->nHeight+1;
 
     int64 nMaxDrift = nMaxClockDrift;
-    if(fTestNet && (nHeight >= nTestStage3)) {
+    if((fTestNet && (nHeight >= nTestStage3)) ||
+      (!fTestNet && (nHeight >= nLiveFork1))) {
         nMaxDrift = nNewMaxClockDrift;
     }
 
@@ -2382,7 +2385,7 @@ bool CBlock::AcceptBlock()
 
     if(IsProofOfStake()) {
         if((fTestNet && (nHeight < nTestStage1)) ||
-          (!fTestNet && (totalCoin > VALUE_CHANGE))) {
+          (!fTestNet && ((totalCoin > VALUE_CHANGE) && (nHeight < nLiveFork1)))) {
             /* vtx[0] must have 2 empty outputs */
             if((vtx[0].vout.size() != 2) || !vtx[0].vout[0].IsEmpty() || !vtx[0].vout[1].IsEmpty())
               return(error("AcceptBlock() : coin base outputs invalid for proof-of-stake block"));
@@ -2701,7 +2704,8 @@ bool CBlock::CheckBlockSignature(int nHeight) const
     }
     else
     {
-        if(fTestNet && (nHeight >= nTestStage2)) {
+        if((fTestNet && (nHeight >= nTestStage2)) ||
+          (!fTestNet && (nHeight >= nLiveFork1))) {
             /* Insist on empty PoW block signatures */
             return(vchBlockSig.empty());
         }
@@ -4254,7 +4258,7 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake)
 
     bool fContribution = false;
     if((fTestNet && (nPrevHeight + 1 < nTestStage1)) ||
-      (!fTestNet && (totalCoin > VALUE_CHANGE)))
+      (!fTestNet && ((totalCoin > VALUE_CHANGE) && (nPrevHeight + 1 < nLiveFork1))))
       fContribution = true;
 
     // Create coinbase tx
