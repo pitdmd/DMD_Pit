@@ -1048,7 +1048,7 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
                     vCoins.push_back(COutput(pcoin, i, pcoin->GetDepthInMainChain()));
 
         sort(vCoins.begin(), vCoins.end(), CompareAgeOnly); // found available coins so sort in age order (TK)
-        reverse(vCoins.begin(), vCoins.end()); // and return vector with coins sorted from newest to oldest (TK)        
+        reverse(vCoins.begin(), vCoins.end()); // and return vector with coins sorted from newest to oldest (TK)
        }
     }
 }
@@ -1155,8 +1155,8 @@ bool CWallet::SelectCoinsMinConf(int64 nTargetValue, unsigned int nSpendTime, in
             nValueRet += coin.first;
             return true;
         }
-        else 
-*/        
+        else
+*/
         if (n < nTargetValue + CENT)
         {
             vValue.push_back(coin);
@@ -1189,7 +1189,7 @@ bool CWallet::SelectCoinsMinConf(int64 nTargetValue, unsigned int nSpendTime, in
     }
 
     // Solve subset sum by stochastic approximation
-    // Don't sort by value - we want to prefer newest to oldest (TK)    
+    // Don't sort by value - we want to prefer newest to oldest (TK)
     // sort(vValue.rbegin(), vValue.rend(), CompareValueOnly());
     vector<char> vfBest;
     int64 nBest;
@@ -1637,14 +1637,16 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
                     if (txNew.nTime >= valid_starting && (txNew.nTime < valid_until || valid_until == (unsigned int)-1)) {
                         scriptStake << OP_REACTOR;
                         nCombineThreshold = reactorStakeValue * COIN;
-                    } else {
-                        /* Just make sure the script being pushed to vout is
-                         * blank to mark the stake as a standard stake. */
-                         scriptStake.clear();
                     }
-                    txNew.vout.push_back(CTxOut(0, scriptStake));
+                } else {
+                    // Initialize empty value
+                    reactorStakeValue = 0;
+                    /* Just make sure the script being pushed to vout is
+                     * blank to mark the stake as a standard stake. */
+                     scriptStake.clear();
                 }
 
+                txNew.vout.push_back(CTxOut(0, scriptStake));
                 txNew.vin.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
                 nCredit += pcoin.first->vout[pcoin.second].nValue;
 
@@ -1687,7 +1689,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
             // Stop adding inputs if reached reserve limit
             if (nCredit + pcoin.first->vout[pcoin.second].nValue > nBalance - nReserveBalance)
                 break;
-            if (nCredit + pcoin.first->vout[pcoin.second].nValue == nBalance) // always leave 2 blocks min - don't combine entire wallet into one block! (TK)           
+            if (nCredit + pcoin.first->vout[pcoin.second].nValue == nBalance) // always leave 2 blocks min - don't combine entire wallet into one block! (TK)
                 break;
             // Do not add additional significant input
             if (pcoin.first->vout[pcoin.second].nValue >= nCombineThreshold)
