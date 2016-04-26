@@ -79,7 +79,7 @@ bool CTransaction::IsReactorStake(string strFileName, CScript scriptPubKeyType, 
         if (nValueIn < (reactorStakeValue * COIN))
             return DoS(100, error("IsReactorStake() : credit doesn't meet requirement for reactor stake; credit %" PRI64d "; reactor size %" PRI64d "", nValueIn, reactorStakeValue));
 
-        if (nValueIn > (reactorStakeValue * COIN))
+        if (nValueIn > ((reactorStakeValue * COIN * 2) - 1 * COIN))
             return DoS(100, error("IsReactorStake() : credit exceeds value of reactor; credit %" PRI64d "; reactor size %" PRI64d "", nValueIn, reactorStakeValue));
 
         if (nStakeReward > GetProofOfStakeReward(nCoinAge, nBits, nTime, nHeight, GetReactorRate(reactorStakeValue, nValueIn)) - GetMinFee() + MIN_TX_FEE)

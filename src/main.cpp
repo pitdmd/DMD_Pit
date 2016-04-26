@@ -478,7 +478,7 @@ bool CTransaction::CheckTransaction() const
         if(fTestNet ||
           (!fTestNet && ((totalCoin <= VALUE_CHANGE) || (totalCoin > POS_RESTART)))) {
             // ppcoin: enforce minimum output amount
-            if ((!txout.IsEmpty()) && txout.nValue < MIN_TXOUT_AMOUNT)
+            if ((!txout.IsEmpty()) && (!IsCoinStake()) && txout.nValue < MIN_TXOUT_AMOUNT)
                 return DoS(100, error("CTransaction::CheckTransaction() : txout.nValue below minimum"));
         }
         else
