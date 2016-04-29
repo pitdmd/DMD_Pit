@@ -3256,16 +3256,6 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
             return false;
         }
 
-        if (totalCoin >= 1000000 && (pfrom->nVersion < MIN_PROTO_VERSION_AFTER_FIRST_REWARD_DECREASE)) {
-            printf("ERROR: partner %s using version %i from before reward decrease; disconnecting\n", pfrom->addr.ToString().c_str(), pfrom->nVersion);
-            // immediate ban
-            pfrom->Misbehaving(100);
-            pfrom->fDisconnect = true;
-            return false;
-        }
-
-        if (pfrom->nVersion == 10300)
-            pfrom->nVersion = 300;
         if (!vRecv.empty())
             vRecv >> addrFrom >> nNonce;
         if (!vRecv.empty())
@@ -3287,21 +3277,15 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
             return true;
         }
 
-        // Diamond: disconnect any known version prior 2.0.3
-        // as these have PoS not working and could serve us garbage
-        printf("connected subver %s\n", pfrom->strSubVer.c_str());
-        if (!strcmp(pfrom->strSubVer.c_str(),"/Diamond:2.0.1/")
-            || !strcmp(pfrom->strSubVer.c_str(),"/Diamond:2.0.2.1/")
-            || !strcmp(pfrom->strSubVer.c_str(),"/Diamond:0.7.2/")
-            || !strcmp(pfrom->strSubVer.c_str(),"/Satoshi:0.7.2/")
-            || !strcmp(pfrom->strSubVer.c_str(),"")
-           )
-        {
-            printf("partner %s using obsolete client %s\n", pfrom->addr.ToString().c_str(), pfrom->strSubVer.c_str());
-            // immediate ban
-            pfrom->Misbehaving(100);
-            pfrom->fDisconnect = true;
-            return false;
+        /* Disconnect all obsolete clients after 10 May 2016 12:00:00 UTC */
+        uint nAdjTime = GetAdjustedTime();
+        if(nAdjTime > 1462881600) {
+            if(pfrom->nVersion < MIN_PROTOCOL_VERSION) {
+                printf("obsolete node %s with client %d, disconnecting\n",
+                  pfrom->addr.ToString().c_str(), pfrom->nVersion);
+                pfrom->fDisconnect = true;
+                return(true);
+            }
         }
 
         // ppcoin: record my external IP reported by peer
