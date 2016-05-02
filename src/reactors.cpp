@@ -8,7 +8,7 @@
 
 using namespace std;
 
-int CURRENT_REACTOR_VERSION = -2; // Test version
+int CURRENT_REACTOR_VERSION = 1;
 
 bool maybeWipeReactorDB(string strFileName) {
     int dbversion;
@@ -39,8 +39,8 @@ void InitReactors() {
 
         if (!inflatedb) {
             // TODO Replace with correct first and last reactor addresses.
-            if (!fTestNet && (!CReactorDB(reactordbfile).CheckReactorAddr(string("dMajkjpXzy2KTk21JkFx8aDtUVoaXmeMEZ"))
-                || !CReactorDB(reactordbfile).CheckReactorAddr(string("dK8Sh1R81YxaFrwwMmYEH1QET6ejhUw3pQ"))))
+            if (!fTestNet && (!CReactorDB(reactordbfile).CheckReactorAddr(string("dasHERZmwgtvWGNRxs55GPrXsAKwY7bX85"))
+                || !CReactorDB(reactordbfile).CheckReactorAddr(string("dMd36o4YfLwRy1WqoyPc9DXRKkviDsMj5h"))))
                 inflatedb = true;
             else if (fTestNet && (!CReactorDB(reactordbfile).CheckReactorAddr(string("muLhTBAfaS2ro2fhDFh6D7MArg6qGv1j1i"))
                 || !CReactorDB(reactordbfile).CheckReactorAddr(string("mkB4XAhFZmG5rNuhs4mnnBFWN3jKD2rXw2"))))
