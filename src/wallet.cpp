@@ -1723,8 +1723,8 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
             if (nCredit < (reactorStakeValue * COIN))
                 return error("CreateCoinStake : credit doesn't meet requirement for reactor stake; credit %" PRI64d "; reactor size %" PRI64d "\n", nCredit, reactorStakeValue);
 
-            if (nCredit > (reactorStakeValue * COIN))
-                return error("CreateCoinStake : credit exceeds value of reactor; credit %" PRI64d "; reactor size %" PRI64d "\n", nCredit, reactorStakeValue);
+            if (nCredit > ((reactorStakeValue * COIN * 2) - 1 * COIN) && reactorStakeValue != 100)
+                return error("CreateCoinStake : credit exceeds value of reactor; credit %" PRI64d "; reactor size %" PRI64d "\n", nCredit, reactorStakeValue * COIN);
         }
 
         int64 nReward = GetProofOfStakeReward(nCoinAge, nBits, txNew.nTime, pIndex0->nHeight, GetReactorRate(reactorStakeValue, nCredit));

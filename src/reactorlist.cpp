@@ -7,62 +7,125 @@
 unsigned int REACTOR_START_TIME = 1462881600; // Tue 10 May 2016 12:00:00 UTC
 unsigned int REACTOR_TEST_START_TIME = 1453075200; // Sun Jan 17 18:00:00 CST 2016
 
+/* If changing anything here make sure to update the CURRENT_REACTOR_VERSION to
+ * force old databases to be rewritten and update the first and last keys in
+ * InitReactors */
+
 void CReactorDB::WriteReactorDB() {
     LOCK(cs);
 
     WriteReactorDBVersion(CURRENT_REACTOR_VERSION);
 
+    // Legendaries, no shutoff time.
+
+    /* The Hearth of Eternity.
+     * Every great dream begins with a dreamer. Within him lies the strength,
+     * the patience, and the passion to reach for the stars to change the world.
+     */
+    WriteReactorAddr(std::string("dasHERZmwgtvWGNRxs55GPrXsAKwY7bX85"), REACTOR_START_TIME, -1, 15000);
+    /* The Cullinan.
+     * Cowards die many times before their deaths; The valiant never taste of
+     * death but once.
+     */
+    WriteReactorAddr(std::string("dEB799gGhnG89b8bkcPUitgXiJWc7ggNCM"), REACTOR_START_TIME, -1, 15000);
+    /* Koh-I-Noor.
+     * Rough diamonds may sometimes be mistaken for worthless pebbles, just like
+     * the true value of a human being can be hidden beneath a hard surface.
+     */
+    WriteReactorAddr(std::string("dMdjuF7xcsUvkYy2ikaQkx5z5viqNvhzxz"), REACTOR_START_TIME, -1, 15000);
+    /* The Allnatt.
+     * Watch your thoughts, thoughts become words and words become actions.
+     * Actions build character and character defines your destiny. AreTimes.com
+     */
+    WriteReactorAddr(std::string("dTKsf6qD7BeVN7bNZpBM2M1iXfbrt5vvak"), REACTOR_START_TIME, -1, 15000);
+    /* The Steinmetz Pink.
+     * Kishore Now That You Are One Of The Legends, May You Be Immortalized In
+     * History. And Bring Hope To, Those Who Have Lost Hope.
+     */
+    WriteReactorAddr(std::string("dW4mnJLQZwFExTBFTBdGSNte71TfvqC8LX"), REACTOR_START_TIME, -1, 15000);
+    /* De Beers Centenary.
+     * Violence: It is not any once race. The victems of the violence are black
+     * and white. Most importantly they were human beings who loved others. BK
+     */
+    WriteReactorAddr(std::string("dTuJJvYoDcerBaHwoK8cK2oEEpYEWr8Tdh"), REACTOR_START_TIME, -1, 15000);
+    /* The Moussaieff Red.
+     * Dear son Andrei, we love you and wish for you the happiest of days and
+     * a bright, healthy future!
+     */
+    WriteReactorAddr(std::string("dMbc7KM7cDy487C9FrWwvyaquprTgtCWZ8"), REACTOR_START_TIME, -1, 3000);
+    /* The Sancy.
+     * To grow a Diamond is a challenge but a good Diamond gains its value over
+     * time. For every Diamond that makes my life a Bliss, a grateful THANKS!
+     */
+    WriteReactorAddr(std::string("dJWVbYhykxPwJQ1PxxjtQjBoGc1abhfQh7"), REACTOR_START_TIME, -1, 3000);
+    /* Wittelsbach.
+     * Leonidas pros Perses - Molon Lave - Apo ta kokkala bgalmenh twn Ellhnwn
+     * ta Iera. Kai san prwta andreiwmenh. Xaire w Xaire Elefteria. Annoula.
+     */
+    WriteReactorAddr(std::string("dFKNwDWexXFapBBxRh5FsYtj3GkG8TyS75"), REACTOR_START_TIME, -1, 3000);
+    /* The Hope.
+     * In retrospect all will see this impulsive decision helped change the
+     * world. Only things impossible are things not yet figured out.
+     */
+    WriteReactorAddr(std::string("dZTEMvLjwWjtiH3k1LCCX2soLXhQcUDLyZ"), REACTOR_START_TIME, -1, 3000);
+
+    // Foundation, variant 1 (disabled).
+    WriteReactorAddr(std::string("VARIANTDISABLED"), -1, -1, 10000);
+
+    // Foundation, variant 2.
+    WriteReactorAddr(std::string("dRwXJFujnkqLVCE1He4Se8TzBUGfTNZKVJ"), REACTOR_START_TIME, -1, 100);
+
     // Year 1 group 1
-    WriteReactorAddr(std::string("dMd36o2f1xpRqjbhtJzzMQKFCnrPmkY35W"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36oizJFn3SmAkb6joFxeGdkxJfD5hma"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36oy5gCoTBpzcDow7zBVQzkjXkEK4zg"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36ofwR2BKWvDHE9R2PMTZgcpqCXMCSh"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36op6aXpdqrrguid183dFokfNgWj2LE"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36orZs9Tt9aVQMe3zwwPSDu4V3Y3gSx"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36oYfiD1H2dAA6MKyvVypX6t1vzgyn7"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36oC3cJ1tq3paRoudv67FzjWAUzUmxk"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36oWVvkFWVcDwn9rLrv9ho7hHe8e2Aj"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36odLYXup2aeHu1F8peZ2DLuru8sR4a"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36o4JMpMsFdx5WhWheNmMsJ6RxuQGoi"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36oGrLK8EFHxYvjFr3cHKaFaganBc3T"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36ovsMxr7XTwUWTvkKBMNmZqxdAq2Qf"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36oNNJu54XVfpp22GQNC52QWbwEkZBu"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36oQ9Mo518CZDZYyWpq6NXHBTGdEuz7"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36obh51hvr94tZMYcaaS71ESW7rR4wp"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36oiMbbonehWLTk8fSRPvLerKWEuxq9"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36oaFt14PGrLKtGjsQCYuk11RWoQseB"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36oSPP6eBK3UyFJTQ1gXc2ATi2PptpB"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36oJ6tKMi64xNwhGRuZ7tGKkTA2w91L"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36obGd94CMTchB8Ej8Uywb3TXCLABi8"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36ogK8wGoemauLuwxYuzm9ZCaTq8Unv"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36oMramh7TjUMuSrbz8XandDKh7sG4L"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36oZGt7x4jcWYrvsi3mmUCcJYwj5ycJ"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36oG39FLCTXYixrPeM2P1zbnCLyuuWt"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36oN4KZvixno5JwpafaUKSN2atbHhJ7"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36od2grzbCZrFbzukcvQSckngZ8P9FT"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36oYg1bXP25GpDVPWpWZUkDqbMZeVfT"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36o7kSGthLtqsTnL5SSifSTFzoKqs2Z"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36o8aSPwAN8N7nX3sN7T7B3nxPoNpJU"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36ozBZ3s7Xxt7jHpaf23ypURWC3MtzE"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36oCxTaNdWW1L3EzwQfNkg99LZZ399z"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36oxvXtSjkLoASTTbYEWLhevb1x83wJ"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36oUFiEUdMSn1B2QXhgu3Z3h2TuP9gs"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36oLh44w8X1WhRvp4jyVA6vwucBuS2S"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36oAuLE9VDuAZF15zQKy43XyRGygdLZ"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36oXeTJWGk8yV22jsamGqaUBwn56aKa"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36oQrHRKnKmYFKwELP2qGw8hPtSHtSd"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36o4ntQ3aSBS6ZbseCA5qe4TWuuNT61"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36oRXmj3hb7oiw1MapLpmdKDdDstMkh"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36osq1Vg9tHk7dyLamkqgsNjMcTRADS"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36ojhQS4mEffzv6rZkNZtpufsW8WFJV"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36ooJ27wqGTbbcaFP46FGwD2BNc6W7D"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36onmRjUtfzkKmNrHpxtA7ugtJgRBEK"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36oz6Wa3Jm4Yk82nxwbexW385XgLjer"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36o4NWrvwE2156mpFEkUKFLa9c39MnN"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36oiEsJEsu5JXRCNi6Vy5HQRs89kbvJ"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36o2LrskBknTtXBw6ry5aRqLrAizFby"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36ojMQ7wMuYdyJ6PNhpjAva2dkXaByK"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
-    WriteReactorAddr(std::string("dMd36oVDG9Z3VPaCVC8ZFvfMsai8aJ36VR"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 365, 1000);
+    WriteReactorAddr(std::string("dMd36o2f1xpRqjbhtJzzMQKFCnrPmkY35W"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36oizJFn3SmAkb6joFxeGdkxJfD5hma"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36oy5gCoTBpzcDow7zBVQzkjXkEK4zg"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36ofwR2BKWvDHE9R2PMTZgcpqCXMCSh"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36op6aXpdqrrguid183dFokfNgWj2LE"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36orZs9Tt9aVQMe3zwwPSDu4V3Y3gSx"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36oYfiD1H2dAA6MKyvVypX6t1vzgyn7"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36oC3cJ1tq3paRoudv67FzjWAUzUmxk"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36oWVvkFWVcDwn9rLrv9ho7hHe8e2Aj"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36odLYXup2aeHu1F8peZ2DLuru8sR4a"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36o4JMpMsFdx5WhWheNmMsJ6RxuQGoi"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36oGrLK8EFHxYvjFr3cHKaFaganBc3T"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36ovsMxr7XTwUWTvkKBMNmZqxdAq2Qf"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36oNNJu54XVfpp22GQNC52QWbwEkZBu"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36oQ9Mo518CZDZYyWpq6NXHBTGdEuz7"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36obh51hvr94tZMYcaaS71ESW7rR4wp"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36oiMbbonehWLTk8fSRPvLerKWEuxq9"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36oaFt14PGrLKtGjsQCYuk11RWoQseB"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36oSPP6eBK3UyFJTQ1gXc2ATi2PptpB"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36oJ6tKMi64xNwhGRuZ7tGKkTA2w91L"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36obGd94CMTchB8Ej8Uywb3TXCLABi8"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36ogK8wGoemauLuwxYuzm9ZCaTq8Unv"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36oMramh7TjUMuSrbz8XandDKh7sG4L"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36oZGt7x4jcWYrvsi3mmUCcJYwj5ycJ"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36oG39FLCTXYixrPeM2P1zbnCLyuuWt"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36oN4KZvixno5JwpafaUKSN2atbHhJ7"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36od2grzbCZrFbzukcvQSckngZ8P9FT"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36oYg1bXP25GpDVPWpWZUkDqbMZeVfT"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36o7kSGthLtqsTnL5SSifSTFzoKqs2Z"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36o8aSPwAN8N7nX3sN7T7B3nxPoNpJU"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36ozBZ3s7Xxt7jHpaf23ypURWC3MtzE"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36oCxTaNdWW1L3EzwQfNkg99LZZ399z"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36oxvXtSjkLoASTTbYEWLhevb1x83wJ"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36oUFiEUdMSn1B2QXhgu3Z3h2TuP9gs"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36oLh44w8X1WhRvp4jyVA6vwucBuS2S"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36oAuLE9VDuAZF15zQKy43XyRGygdLZ"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36oXeTJWGk8yV22jsamGqaUBwn56aKa"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36oQrHRKnKmYFKwELP2qGw8hPtSHtSd"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36o4ntQ3aSBS6ZbseCA5qe4TWuuNT61"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36oRXmj3hb7oiw1MapLpmdKDdDstMkh"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36osq1Vg9tHk7dyLamkqgsNjMcTRADS"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36ojhQS4mEffzv6rZkNZtpufsW8WFJV"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36ooJ27wqGTbbcaFP46FGwD2BNc6W7D"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36onmRjUtfzkKmNrHpxtA7ugtJgRBEK"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36oz6Wa3Jm4Yk82nxwbexW385XgLjer"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36o4NWrvwE2156mpFEkUKFLa9c39MnN"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36oiEsJEsu5JXRCNi6Vy5HQRs89kbvJ"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36o2LrskBknTtXBw6ry5aRqLrAizFby"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36ojMQ7wMuYdyJ6PNhpjAva2dkXaByK"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
+    WriteReactorAddr(std::string("dMd36oVDG9Z3VPaCVC8ZFvfMsai8aJ36VR"), REACTOR_START_TIME, REACTOR_START_TIME + 60 * 60 * 24 * 395, 1000);
 
     // Year 1 group 2
     WriteReactorAddr(std::string("dMd36oZL8CnJKVbsUxtaGLzMzyofKSFqMn"), REACTOR_START_TIME + 60 * 60 * 24 * (365 / 2), REACTOR_START_TIME + 60 * 60 * 24 * (365 + 365 / 2), 1000);
@@ -383,64 +446,6 @@ void CReactorDB::WriteReactorDB() {
     WriteReactorAddr(std::string("dMd36oT1Vb7HGsgfuRGqr2PRrBgF8Yn7tW"), REACTOR_START_TIME + 60 * 60 * 24 * 365 * 5, REACTOR_START_TIME + 60 * 60 * 24 * 365 * 6, 1000);
     WriteReactorAddr(std::string("dMd36oaRy2Pfgxzp1HMYc9nnhN1r2kHkRD"), REACTOR_START_TIME + 60 * 60 * 24 * 365 * 5, REACTOR_START_TIME + 60 * 60 * 24 * 365 * 6, 1000);
     WriteReactorAddr(std::string("dMd36o4YfLwRy1WqoyPc9DXRKkviDsMj5h"), REACTOR_START_TIME + 60 * 60 * 24 * 365 * 5, REACTOR_START_TIME + 60 * 60 * 24 * 365 * 6, 1000);
-
-    // Legendaries, no shutoff time.
-
-    /* The Hearth of Eternity.
-     * Every great dream begins with a dreamer. Within him lies the strength,
-     * the patience, and the passion to reach for the stars to change the world.
-     */
-    WriteReactorAddr(std::string("dasHERZmwgtvWGNRxs55GPrXsAKwY7bX85"), REACTOR_START_TIME, -1, 15000);
-    /* The Cullinan.
-     * To be announced later.
-     */
-    WriteReactorAddr(std::string("dEB799gGhnG89b8bkcPUitgXiJWc7ggNCM"), REACTOR_START_TIME, -1, 15000);
-    /* Koh-I-Noor.
-     * Rough diamonds may sometimes be mistaken for worthless pebbles, just like
-     * the true value of a human being can be hidden beneath a hard surface.
-     */
-    WriteReactorAddr(std::string("dMdjuF7xcsUvkYy2ikaQkx5z5viqNvhzxz"), REACTOR_START_TIME, -1, 15000);
-    /* The Allnatt.
-     * Watch your thoughts, thoughts become words and words become actions.
-     * Actions build character and character defines your destiny. AreTimes.com
-     */
-    WriteReactorAddr(std::string("dTKsf6qD7BeVN7bNZpBM2M1iXfbrt5vvak"), REACTOR_START_TIME, -1, 15000);
-    /* The Steinmetz Pink.
-     * Kishore Now That You Are One Of The Legends, May You Be Immortalized In
-     * History. And Bring Hope To, Those Who Have Lost Hope.
-     */
-    WriteReactorAddr(std::string("dW4mnJLQZwFExTBFTBdGSNte71TfvqC8LX"), REACTOR_START_TIME, -1, 15000);
-    /* De Beers Centenary.
-     * To be announced later.
-     */
-    WriteReactorAddr(std::string("dTuJJvYoDcerBaHwoK8cK2oEEpYEWr8Tdh"), REACTOR_START_TIME, -1, 15000);
-    /* The Moussaieff Red.
-     * Dear son Andrei, we love you and wish for you the happiest of days and
-     * a bright, healthy future!
-     */
-    WriteReactorAddr(std::string("dMbc7KM7cDy487C9FrWwvyaquprTgtCWZ8"), REACTOR_START_TIME, -1, 3000);
-    /* The Sancy.
-     * To grow a Diamond is a challenge but a good Diamond gains its value over
-     * time. For every Diamond that makes my life a Bliss, a grateful THANKS!
-     */
-    WriteReactorAddr(std::string("dJWVbYhykxPwJQ1PxxjtQjBoGc1abhfQh7"), REACTOR_START_TIME, -1, 3000);
-    /* Wittelsbach.
-     * Leonidas pros Perses - Molon Lave - Apo ta kokkala bgalmenh twn Ellhnwn
-     * ta Iera. Kai san prwta andreiwmenh. Xaire w Xaire Elefteria. Annoula.
-     */
-    WriteReactorAddr(std::string("dFKNwDWexXFapBBxRh5FsYtj3GkG8TyS75"), REACTOR_START_TIME, -1, 3000);
-    /* The Hope.
-     * To be announced later.
-     */
-    WriteReactorAddr(std::string("dZTEMvLjwWjtiH3k1LCCX2soLXhQcUDLyZ"), REACTOR_START_TIME, -1, 3000);
-
-    // Foundation, no shutoff time.
-    // TODO: rip this out or replace it...
-    WriteReactorAddr(std::string("dLBh6YiVNwAYWd731R9yrxxAT97eHPa8Y6"), REACTOR_START_TIME, -1, 10000);
-
-    // Staisybit address
-    // TODO: rip this out or replace it...
-    WriteReactorAddr(std::string("dK8Sh1R81YxaFrwwMmYEH1QET6ejhUw3pQ"), REACTOR_START_TIME, -1, 100);
 }
 
 void CReactorDB::WriteTestReactorDB() {
@@ -485,9 +490,9 @@ void CReactorDB::WriteTestReactorDB() {
     // Legendaries (only list max here), no shutoff time.
     WriteReactorAddr(std::string("mkKzRqz4hQNM3re3wZrcGnsMRRJPudPsQu"), REACTOR_TEST_START_TIME, -1, 15000);
 
-    // Foundation, no shutoff time.
+    // Foundation, variant 1
     WriteReactorAddr(std::string("mgCRA4ZXqaB8GBwb2AN2EaKL476caTdf26"), REACTOR_TEST_START_TIME, -1, 10000);
 
-    // Staisybit address
+    // Foundation, variant 2
     WriteReactorAddr(std::string("mkB4XAhFZmG5rNuhs4mnnBFWN3jKD2rXw2"), REACTOR_TEST_START_TIME, -1, 100);
 }
