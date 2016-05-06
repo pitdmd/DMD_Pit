@@ -13,7 +13,6 @@ using namespace boost;
 using namespace json_spirit;
 
 static uint64 nAccountingEntryNumber = 0;
-extern bool fWalletUnlockMintOnly;
 
 //
 // CWalletDB
