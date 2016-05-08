@@ -4,7 +4,7 @@
 
 #include "reactors.h"
 
-unsigned int REACTOR_START_TIME = 1462881600; // Tue 10 May 2016 12:00:00 UTC
+unsigned int REACTOR_START_TIME = 1463313600; // Tue 15 May 2016 12:00:00 UTC
 unsigned int REACTOR_TEST_START_TIME = 1453075200; // Sun Jan 17 18:00:00 CST 2016
 
 /* If changing anything here make sure to update the CURRENT_REACTOR_VERSION to
