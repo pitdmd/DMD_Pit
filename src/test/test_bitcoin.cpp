@@ -15,7 +15,7 @@ bool fUseFastIndex = true;
 
 struct TestingSetup {
     TestingSetup() {
-        fPrintToDebugger = true; // don't want to write to debug.log file
+        fPrintToConsole = true; // don't want to write to debug.log file
         noui_connect();
         bitdb.MakeMock();
         LoadBlockIndex(true);
@@ -43,4 +43,3 @@ void StartShutdown()
 {
   exit(0);
 }
-

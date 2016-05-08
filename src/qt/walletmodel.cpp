@@ -12,8 +12,6 @@
 #include <QSet>
 #include <QTimer>
 
-extern bool fWalletUnlockMintOnly;
-
 WalletModel::WalletModel(CWallet *wallet, OptionsModel *optionsModel, QObject *parent) :
     QObject(parent), wallet(wallet), optionsModel(optionsModel), addressTableModel(0),
     transactionTableModel(0),
@@ -255,20 +253,18 @@ TransactionTableModel *WalletModel::getTransactionTableModel()
     return transactionTableModel;
 }
 
-WalletModel::EncryptionStatus WalletModel::getEncryptionStatus() const
-{
+WalletModel::EncryptionStatus WalletModel::getEncryptionStatus() const {
+
     if(!wallet->IsCrypted())
-    {
-        return Unencrypted;
-    }
-    else if(wallet->IsLocked())
-    {
-        return Locked;
-    }
+      return(Unencrypted);
+
+    if(wallet->IsLocked())
+      return(Locked);
+
+    if(fStakingOnly)
+      return(UnlockedStaking);
     else
-    {
-        return Unlocked;
-    }
+      return(Unlocked);
 }
 
 bool WalletModel::setWalletEncrypted(bool encrypted, const SecureString &passphrase)
@@ -360,23 +356,22 @@ void WalletModel::unsubscribeFromCoreSignals()
 WalletModel::UnlockContext WalletModel::requestUnlock()
 {
     bool was_locked = getEncryptionStatus() == Locked;
+
+    if((!was_locked) && fStakingOnly) {
+       setWalletLocked(true);
+       was_locked = getEncryptionStatus() == Locked;
+    }
+
     if(was_locked)
     {
         // Request UI to unlock wallet
         emit requireUnlock();
     }
-    else if(fWalletUnlockMintOnly)
-    {
-        // Relock so the user must give the right passphrase to continue
-        setWalletLocked(true);
 
-        // Request UI to unlock wallet
-        emit requireUnlock();
-    }
     // If wallet is still locked, unlock was failed or cancelled, mark context as invalid
     bool valid = getEncryptionStatus() != Locked;
 
-    return UnlockContext(this, valid, was_locked);
+    return(UnlockContext(this, valid, was_locked && !fStakingOnly));
 }
 
 WalletModel::UnlockContext::UnlockContext(WalletModel *wallet, bool valid, bool relock):

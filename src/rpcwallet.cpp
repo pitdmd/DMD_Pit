@@ -1,5 +1,6 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
+// Copyright (c) 2015-2016 Nathan Bass "IngCr3at1on"
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -8,6 +9,7 @@
 #include "bitcoinrpc.h"
 #include "init.h"
 #include "base58.h"
+#include "reactors.h"
 
 using namespace json_spirit;
 using namespace std;
@@ -31,8 +33,9 @@ void EnsureWalletIsUnlocked()
 {
     if (pwalletMain->IsLocked())
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
-    if (fWalletUnlockMintOnly)
-        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Wallet unlocked for block minting only.");
+
+    if(fStakingOnly)
+      throw(JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Wallet unlocked for staking only."));
 }
 
 void WalletTxToJSON(const CWalletTx& wtx, Object& entry)
@@ -1464,11 +1467,11 @@ Value walletpassphrase(const Array& params, bool fHelp)
     int64* pnSleepTime = new int64(params[1].get_int64());
     NewThread(ThreadCleanWalletPassphrase, pnSleepTime);
 
-    // ppcoin: if user OS account compromised prevent trivial sendmoney commands
-    if (params.size() > 2)
-        fWalletUnlockMintOnly = params[2].get_bool();
+    /* Disables some wallet functionality if unlocked for staking only */
+    if(params.size() > 2)
+      fStakingOnly = params[2].get_bool();
     else
-        fWalletUnlockMintOnly = false;
+      fStakingOnly = false;
 
     return Value::null;
 }
@@ -1776,7 +1779,7 @@ Value makekeypair(const Array& params, bool fHelp)
     string strPrefix = "";
     if (params.size() > 0)
         strPrefix = params[0].get_str();
- 
+
     CKey key;
     key.MakeNewKey(false);
 
@@ -1826,4 +1829,174 @@ Value getchangeaddress(const Array& params, bool fHelp)
        ret = CBitcoinAddress(changeAddress).ToString();
 
     return ret;
+}
+
+Value setscrapeaddress(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 2) {
+        string ret = "setscrapeaddress <staking address>, <address to stake to>\nSet an auto scrape address to send stake rewards to from a given address.";
+        if (pwalletMain->IsCrypted())
+            ret += "requires wallet passphrase to be set with walletpassphrase first";
+
+        throw runtime_error(ret);
+    }
+
+    EnsureWalletIsUnlocked();
+
+    string strAddress = params[0].get_str();
+    CBitcoinAddress address(strAddress);
+    string strScrapeAddress = params[1].get_str();
+    CBitcoinAddress scrapeAddress(strScrapeAddress);
+
+    if (!address.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address.");
+
+    if (address.Get() == scrapeAddress.Get())
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot set scrape address to the same as staking address.");
+
+    if (!IsMine(*pwalletMain, address.Get()))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Staking address must be in wallet.");
+
+    if (!scrapeAddress.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid scrape address.");
+
+    string oldScrapeAddress;
+    bool warn = false;
+    if (pwalletMain->ReadScrapeAddress(strAddress, oldScrapeAddress)) {
+        if (strScrapeAddress == oldScrapeAddress)
+            throw runtime_error(strprintf("Scrape address is already set to %s", oldScrapeAddress.c_str()));
+
+        warn = true;
+    }
+
+    if (pwalletMain->WriteScrapeAddress(strAddress, strScrapeAddress)) {
+        if (warn)
+            return strprintf("Warning overwriting %s with %s", oldScrapeAddress.c_str(), strScrapeAddress.c_str());
+
+        Object obj;
+        obj.push_back(Pair(strAddress, strScrapeAddress));
+        return obj;
+    }
+
+    // This should never happen.
+    throw JSONRPCError(-1, "setscrapeaddress: unknown error");
+}
+
+Value getscrapeaddress(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "getscrapeaddress <staking address>\n"
+            "Get the auto scrape address for a given address."
+        );
+
+    string strAddress = params[0].get_str();
+    CBitcoinAddress address(strAddress);
+
+    if (!address.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address.");
+
+    if (!IsMine(*pwalletMain, address.Get()))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Staking address must be in wallet.");
+
+    string strScrapeAddress;
+    if (!pwalletMain->ReadScrapeAddress(strAddress, strScrapeAddress)) {
+        string ret = "No scrape address set for address ";
+        ret += strAddress;
+        throw JSONRPCError(RPC_WALLET_ERROR, ret);
+    }
+
+    Object obj;
+    obj.push_back(Pair(strAddress, strScrapeAddress));
+    return obj;
+}
+
+Value listscrapeaddresses(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+            "listscrapeaddresses\n"
+            "List all the defined scrape addresses."
+        );
+
+    Object obj;
+    LOCK(pwalletMain->cs_wallet);
+    CWalletDB(pwalletMain->strWalletFile).DumpScrapeAddresses(obj);
+
+    return obj;
+}
+
+Value deletescrapeaddress(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1) {
+        string ret = "deletescrapeaddress <staking address>\nDelete the auto scrape address for a given address.";
+        if (pwalletMain->IsCrypted())
+            ret += "requires wallet passphrase to be set with walletpassphrase first";
+
+        throw runtime_error(ret);
+    }
+
+    EnsureWalletIsUnlocked();
+
+    string strAddress = params[0].get_str();
+    CBitcoinAddress address(strAddress);
+
+    if (!address.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address.");
+
+    if (!IsMine(*pwalletMain, address.Get()))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Staking address must be in wallet.");
+
+    if (!pwalletMain->HasScrapeAddress(strAddress)) {
+        string ret = "No scrape address set for address ";
+        ret += strAddress;
+        throw JSONRPCError(RPC_WALLET_ERROR, ret);
+    }
+
+    return pwalletMain->EraseScrapeAddress(strAddress);
+}
+
+Value listreactordata(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "listreactordata\n"
+            "List the data regarding a given reactor address (only lists\n"
+            "valid addresses found in wallet).");
+
+    string strAddress = params[0].get_str();
+    CBitcoinAddress address(strAddress);
+
+    if (!IsMine(*pwalletMain, address.Get()))
+        throw runtime_error("Address must be in wallet.");
+
+    string reactordbfile = GetReactorDBFile();
+    if (!CReactorDB(reactordbfile).CheckReactorAddr(strAddress))
+        throw runtime_error("Address is not a valid reactor address.");
+
+    int64 reactorStakeValue;
+    unsigned int valid_starting;
+    unsigned int valid_until;
+    CScript scriptReactorAddress;
+    scriptReactorAddress.SetDestination(address.Get());
+    if (!CReactorDB(reactordbfile).IsReactor(reactordbfile, scriptReactorAddress, reactorStakeValue, valid_starting, valid_until))
+        throw runtime_error("Address is not a valid reactor address.");
+
+    Object obj;
+    obj.push_back(Pair("Address", strAddress));
+    if (reactorStakeValue == 15000) {
+        obj.push_back(Pair("Value 1", 3000));
+        obj.push_back(Pair("Value 2", (int)reactorStakeValue));
+    } else {
+        obj.push_back(Pair("Value", (int)reactorStakeValue));
+    }
+    obj.push_back(Pair("Valid starting", (int)valid_starting));
+
+    if (valid_until == (unsigned int)-1) {
+        obj.push_back(Pair("Expires", "never"));
+    } else {
+        obj.push_back(Pair("Expires", (int)valid_until));
+    }
+
+    return obj;
 }
