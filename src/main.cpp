@@ -998,7 +998,7 @@ int64 GetProofOfWorkReward(int nHeight, int64 nFees, uint256 prevHash)
 
 // miner's coin stake reward based on nBits and coin age spent (coin-days)
 // simple algorithm, not depend on the diff
-int64 GetProofOfStakeReward(int64 nCoinAge, unsigned int nBits, unsigned int nTime, int nHeight, int reactorRate)
+int64 GetProofOfStakeReward(int64 nCoinAge, unsigned int nBits, unsigned int nTime, int nHeight, float reactorRate)
 {
     int64 nRewardCoinYear;
     int64 nSubsidy = 0;
@@ -1006,10 +1006,11 @@ int64 GetProofOfStakeReward(int64 nCoinAge, unsigned int nBits, unsigned int nTi
     if (totalCoin > VALUE_CHANGE || fTestNet)
     {
         nRewardCoinYear = MAX_MINT_PROOF_OF_STAKE;
-        if(fTestNet)
-            nSubsidy = nCoinAge * 50 * CENT / 365;
-		else
-		{
+        if(fTestNet) {
+            nRewardCoinYear = 25 * CENT;
+            nRewardCoinYear = GetAdjustedCoinYear(nRewardCoinYear, reactorRate);
+            nSubsidy = nCoinAge * nRewardCoinYear / 365;
+        } else {
 		// Diamond v2 PoS spec:
 		// 50% algorithm switch to 1,500,000 coins
 		// 25% from 1,500,000 to 2,500,000 coins
@@ -1024,6 +1025,7 @@ int64 GetProofOfStakeReward(int64 nCoinAge, unsigned int nBits, unsigned int nTi
 			else
 			    nRewardCoinYear = 50 * CENT;
 
+            nRewardCoinYear = GetAdjustedCoinYear(nRewardCoinYear, reactorRate);
 			nSubsidy = nCoinAge * nRewardCoinYear / 365;
 		}
 
@@ -1031,6 +1033,7 @@ int64 GetProofOfStakeReward(int64 nCoinAge, unsigned int nBits, unsigned int nTi
             printf("GetProofOfStakeReward(): create=%s nCoinAge=%"PRI64d" nBits=%d\n", FormatMoney(nSubsidy).c_str(), nCoinAge, nBits);
         return nSubsidy;
     }
+    // DEAD CODE, nothing past this line runs anymore...
     else
     {
         CBigNum bnRewardCoinYearLimit = MAX_MINT_PROOF_OF_STAKE; // Base stake mint rate, 100% year interest
@@ -1062,11 +1065,6 @@ int64 GetProofOfStakeReward(int64 nCoinAge, unsigned int nBits, unsigned int nTi
 
         nRewardCoinYear = bnUpperBound.getuint64();
         nRewardCoinYear = min((nRewardCoinYear / CENT) * CENT, MAX_MINT_PROOF_OF_STAKE);
-
-        /* If the reactor rate is greater than 0 adjust the nRewardCoinYear by
-         * the given rate. */
-        if (reactorRate > 0)
-            nRewardCoinYear = nRewardCoinYear * (reactorRate * CENT);
 
         nSubsidy = nCoinAge * 33 / (365 * 33 + 8) * nRewardCoinYear;
         if (fDebug && GetBoolArg("-printcreation"))
