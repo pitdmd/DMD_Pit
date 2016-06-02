@@ -153,7 +153,7 @@ int64 GetAdjustedCoinYear(int64 nRewardCoinYear, float reactorRate) {
         /* For 30 days after the fix_time we want to boost the normal stake rate
          * by 30%. */
         if (GetTime() >= fix_time && GetTime() < fix_time+(60*60*24*30)) {
-            nRewardCoinYear = nRewardCoinYear * .3;
+            nRewardCoinYear = 30 * CENT;
         }
     }
 
