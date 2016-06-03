@@ -23,11 +23,8 @@ Update ubuntu
 *navigate to the downloaded files
 
     cd ~ *navigate to the src file in the source code
-    cd diamond/src
+    cd Diamond/src
 
-*create obj folder
-
-    mkdir obj
 
 *build diamondd !This will take a while!
 

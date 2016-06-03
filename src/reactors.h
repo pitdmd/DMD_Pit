@@ -39,9 +39,11 @@ public:
  * properly run tests in a mock db instead of using the db in the datadir.*/
 void InflateReactorDB(std::string strFileName);
 
-/* Get the reactorRate (Legendaries have two possible rates so use nValueIn
- * when calculating for them). */
-int GetReactorRate(int64 /*reactorStakeValue*/, int64 /*nValueIn*/);
+// Get the reactorRate (see inline comments for why nValueIn is needed).
+float GetReactorRate(int64 /*reactorStakeValue*/, int64 /*nValueIn*/);
+/* Get the adjusted coin year based on the reactorRate (depending on the time
+ * in relation to REACTOR_FIX_TIME. */
+int64 GetAdjustedCoinYear(int64 /*nRewardCoinYear*/, float /*reactorRate*/);
 
 inline std::string GetReactorDBFile() {
     return (GetDataDir() / "reactors.dat").string();
