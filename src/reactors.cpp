@@ -105,8 +105,10 @@ float GetReactorRate(int64 reactorStakeValue, int64 nValueIn) {
     if (fTestNet)
         fix_time = REACTOR_TEST_FIX_TIME;
 
-    if (reactorStakeValue == 100)
-        return 1.05;
+if(reactorStakeValue == 100) {
+   if(GetTime() > fix_time) return(1.20);
+   else return(1.05);
+}
 
     if (reactorStakeValue == 1000 || reactorStakeValue == 10000)
         return 2;
