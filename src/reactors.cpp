@@ -9,7 +9,7 @@
 using namespace std;
 
 int CURRENT_REACTOR_VERSION = 1;
-unsigned int REACTOR_FIX_TIME = 1465689599; // Sat, 11 Jun 2016 23:59:59 GMT
+unsigned int REACTOR_FIX_TIME = 1466337600; // 19 Jun 2016 12:00:00 UTC
 unsigned int REACTOR_TEST_FIX_TIME = 1464123019; // Tue, 24 May 2016 20:50:19 GMT
 
 bool maybeWipeReactorDB(string strFileName) {
