@@ -71,7 +71,7 @@ static const uint256 hashGenesisBlockOfficial("0x2d8b2c67b7f56e70b9b16b377b988bb
 static const uint256 hashGenesisBlockTestNet ("0x0000004b5393b6564f68472ce799a25c56fc63f45d55b7b1f450ac5836598a20");
 
 static const int64 nMaxClockDrift = 2 * 60 * 60;        // two hours
-static const int64 nNewMaxClockDrift = 15 * 60; 
+static const int64 nNewMaxClockDrift = 15 * 60;
 
 extern bool fOldMerkleHash;
 
@@ -138,7 +138,7 @@ void IncrementExtraNonce(CBlock* pblock, CBlockIndex* pindexPrev, unsigned int& 
 void FormatDataBuffer(CBlock *pblock, unsigned int *pdata);
 bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey);
 int64 GetProofOfWorkReward(int nHeight, int64 nFees, uint256 prevHash);
-int64 GetProofOfStakeReward(int64 nCoinAge, unsigned int nBits, unsigned int nTime, int nHeight, int reactorRate = 0);
+int64 GetProofOfStakeReward(int64 nCoinAge, unsigned int nBits, unsigned int nTime, int nHeight, float reactorRate = 0);
 unsigned int ComputeMinWork(unsigned int nBase, int64 nTime);
 unsigned int ComputeMinStake(unsigned int nBase, int64 nTime, unsigned int nBlockTime);
 int GetNumBlocksOfPeers();
@@ -879,22 +879,22 @@ public:
 template <typename Stream>
 int ReadWriteAuxPow(Stream& s, const boost::shared_ptr<CAuxPow>& auxpow, int nType,
   int nVersion, CSerActionSerialize ser_action);
- 
+
 template <typename Stream>
 int ReadWriteAuxPow(Stream& s, boost::shared_ptr<CAuxPow>& auxpow, int nType,
   int nVersion, CSerActionUnserialize ser_action);
- 
+
 template <typename Stream>
 int ReadWriteAuxPow(Stream& s, const boost::shared_ptr<CAuxPow>& auxpow, int nType,
   int nVersion, CSerActionGetSerializeSize ser_action);
-  
+
 enum {
     // primary version
-    BLOCK_VERSION_DEFAULT        = (1 << 0), 
+    BLOCK_VERSION_DEFAULT        = (1 << 0),
 
     // modifiers
     BLOCK_VERSION_AUXPOW         = (1 << 8),
- 
+
     // bits allocated for chain ID
     BLOCK_VERSION_CHAIN_START    = (1 << 16),
     BLOCK_VERSION_CHAIN_END      = (1 << 30),

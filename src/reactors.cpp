@@ -9,6 +9,8 @@
 using namespace std;
 
 int CURRENT_REACTOR_VERSION = 1;
+unsigned int REACTOR_FIX_TIME = 1466337600; // 19 Jun 2016 12:00:00 UTC
+unsigned int REACTOR_TEST_FIX_TIME = 1464123019; // Tue, 24 May 2016 20:50:19 GMT
 
 bool maybeWipeReactorDB(string strFileName) {
     int dbversion;
@@ -98,22 +100,64 @@ void InflateReactorDB(string strFileName) {
     fTestNet ? CReactorDB(strFileName, "cw+").WriteTestReactorDB() : CReactorDB(strFileName, "cw+").WriteReactorDB();
 }
 
-int GetReactorRate(int64 reactorStakeValue, int64 nValueIn) {
-    if (reactorStakeValue == 100)
-        return 1.05;
+float GetReactorRate(int64 reactorStakeValue, int64 nValueIn) {
+    unsigned int fix_time = REACTOR_FIX_TIME;
+    if (fTestNet)
+        fix_time = REACTOR_TEST_FIX_TIME;
+
+if(reactorStakeValue == 100) {
+   if(GetTime() > fix_time) return(1.20);
+   else return(1.05);
+}
 
     if (reactorStakeValue == 1000 || reactorStakeValue == 10000)
         return 2;
 
-    /* We store the max value of the Legendaries in the database and override
-     * the rate for 3000 coin stakes here. */
-    if (reactorStakeValue == 15000 && nValueIn == 3000 * COIN)
-        return 2;
+    /* Originally the spec for the legendaries made it sound like they could
+     * have one or the other value (instead of being set to one specifically),
+     * this segment of code was overlooked in previous updates...
+     * While this check is probably not necessary we'll do it anyway as a sanity
+     * check to ensure that we don't inadvertently cause mini-forks. */
+    if (GetTime() < fix_time) {
+        if (reactorStakeValue == 15000 && nValueIn == 3000 * COIN)
+            return 2;
+    } else {
+        if (reactorStakeValue == 3000)
+            return 2;
+    }
 
-    if (reactorStakeValue == 15000 && nValueIn == 15000 * COIN)
-        return 1.25;
+    if (GetTime() < fix_time) {
+        if (reactorStakeValue == 15000 && nValueIn == 15000 * COIN)
+            return 1.25;
+    } else {
+        if (reactorStakeValue == 15000)
+            return 1.25;
+    }
 
     return 0;
+}
+
+int64 GetAdjustedCoinYear(int64 nRewardCoinYear, float reactorRate) {
+    unsigned int fix_time = REACTOR_FIX_TIME;
+    if (fTestNet)
+        fix_time = REACTOR_TEST_FIX_TIME;
+    /* For 30 days after the fix_time we want to boost the normal stake rate
+     * by 30%. */
+    if (GetTime() >= fix_time && GetTime() < fix_time+(60*60*24*30)) {
+        nRewardCoinYear = 30 * CENT;
+        }    
+    /* If the reactor rate is greater than 0 adjust the nRewardCoinYear by
+     * the given rate. */
+    if (reactorRate > 0) {
+        // If prior to fix cast reactorRate to int to avoid mini-forks.
+        if (GetTime() < fix_time) {
+            nRewardCoinYear = nRewardCoinYear * (int)reactorRate;
+        } else {
+            nRewardCoinYear = nRewardCoinYear * reactorRate;
+        }
+    }
+
+    return nRewardCoinYear;
 }
 
 bool CReactorDB::WriteReactorDBVersion(int version)
