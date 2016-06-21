@@ -6,6 +6,7 @@
 
 #include "kernel.h"
 #include "db.h"
+#include "auxpow.h"
 
 using namespace std;
 
@@ -32,14 +33,27 @@ static std::map<int, unsigned int> mapStakeModifierCheckpoints =
         ( 317997, 0xfd318368u )
 	;
 
+/* Selects the appropriate minimal stake age */
+uint GetStakeMinAge(uint nStakeTime) {
+
+    if(fTestNet)
+      return(nStakeMinAge);
+
+    if(nStakeTime > nLiveTimeSwitch)
+      return(nStakeMinAgeFixed);
+    else
+      return(nStakeMinAge);
+}
+
 // Get time weight
-int64 GetWeight(int64 nIntervalBeginning, int64 nIntervalEnd)
-{
+int64 GetWeight(int64 nIntervalBeginning, int64 nIntervalEnd) {
+    uint nStakeMinAgeCurrent = GetStakeMinAge(nIntervalEnd);
+
     // Kernel hash weight starts from 0 at the min age
     // this change increases active coins participating the hash and helps
     // to secure the network when proof-of-stake difficulty is low
 
-    return min(nIntervalEnd - nIntervalBeginning - nStakeMinAge, (int64)nStakeMaxAge);
+    return(min(nIntervalEnd - nIntervalBeginning - nStakeMinAgeCurrent, (int64)nStakeMaxAge));
 }
 
 // Get the last stake modifier and its generation time from a given block
@@ -239,6 +253,9 @@ static bool GetKernelStakeModifier(uint256 hashBlockFrom, uint64& nStakeModifier
     const CBlockIndex* pindexFrom = mapBlockIndex[hashBlockFrom];
     nStakeModifierHeight = pindexFrom->nHeight;
     nStakeModifierTime = pindexFrom->GetBlockTime();
+
+    uint nStakeMinAgeCurrent = GetStakeMinAge(nStakeModifierTime);
+
     int64 nStakeModifierSelectionInterval = GetStakeModifierSelectionInterval();
     const CBlockIndex* pindex = pindexFrom;
     // loop to find the stake modifier later by a selection interval
@@ -246,7 +263,7 @@ static bool GetKernelStakeModifier(uint256 hashBlockFrom, uint64& nStakeModifier
     {
         if (!pindex->pnext)
         {   // reached best block; may happen if node is behind on block chain
-            if (fPrintProofOfStake || (pindex->GetBlockTime() + nStakeMinAge - nStakeModifierSelectionInterval > GetAdjustedTime()))
+            if(fPrintProofOfStake || (pindex->GetBlockTime() + nStakeMinAgeCurrent - nStakeModifierSelectionInterval > GetAdjustedTime()))
                 return error("GetKernelStakeModifier() : reached best block %s at height %d from block %s",
                     pindex->GetBlockHash().ToString().c_str(), pindex->nHeight, hashBlockFrom.ToString().c_str());
             else
@@ -292,7 +309,10 @@ bool CheckStakeKernelHash(unsigned int nBits, const CBlock& blockFrom, unsigned 
         return error("CheckStakeKernelHash() : nTime violation");
 
     unsigned int nTimeBlockFrom = blockFrom.GetBlockTime();
-    if (nTimeBlockFrom + nStakeMinAge > nTimeTx) // Min age requirement
+
+    uint nStakeMinAgeCurrent = GetStakeMinAge(nTimeBlockFrom);
+
+    if(nTimeBlockFrom + nStakeMinAgeCurrent > nTimeTx) // Min age requirement
         return error("CheckStakeKernelHash() : min age violation");
 
     CBigNum bnTargetPerCoinDay;
@@ -304,8 +324,7 @@ bool CheckStakeKernelHash(unsigned int nBits, const CBlock& blockFrom, unsigned 
     // v0.3 protocol kernel hash weight starts from 0 at the min age
     // this change increases active coins participating the hash and helps
     // to secure the network when proof-of-stake difficulty is low
-// DK changing calculations here creates a fork
-    int64 nTimeWeight = min((int64)nTimeTx - txPrev.nTime, (int64)nStakeMaxAge) - nStakeMinAge;
+    int64 nTimeWeight = min((int64)nTimeTx - txPrev.nTime, (int64)nStakeMaxAge) - nStakeMinAgeCurrent;
     CBigNum bnCoinDayWeight = CBigNum(nValueIn) * nTimeWeight / COIN / (24 * 60 * 60);
     // Calculate hash
     CDataStream ss(SER_GETHASH, 0);

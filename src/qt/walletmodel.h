@@ -56,7 +56,8 @@ public:
     {
         Unencrypted,  // !wallet->IsCrypted()
         Locked,       // wallet->IsCrypted() && wallet->IsLocked()
-        Unlocked      // wallet->IsCrypted() && !wallet->IsLocked()
+        Unlocked,       /* wallet->IsCrypted() && !wallet->IsLocked() && !fStakingOnly */
+        UnlockedStaking /* wallet->IsCrypted() && !wallet->IsLocked() && fStakingOnly */
     };
 
     OptionsModel *getOptionsModel();

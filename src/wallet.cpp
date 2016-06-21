@@ -1,5 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
+// Copyright (c) 2015-2016 Nathan Bass "IngCr3at1on"
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -10,7 +11,9 @@
 #include "ui_interface.h"
 #include "base58.h"
 #include "kernel.h"
+#include "auxpow.h"
 #include "coincontrol.h"
+#include "reactors.h"
 
 #include <boost/algorithm/string.hpp>
 
@@ -31,6 +34,11 @@ struct CompareValueOnly
         return t1.first < t2.first;
     }
 };
+
+bool CompareAgeOnly(const COutput t1, const COutput t2)
+{
+        return (t1.tx->nTime < t2.tx->nTime);
+}
 
 CPubKey CWallet::GenerateNewKey()
 {
@@ -84,10 +92,6 @@ bool CWallet::AddCScript(const CScript& redeemScript)
         return true;
     return CWalletDB(strWalletFile).WriteCScript(Hash160(redeemScript), redeemScript);
 }
-
-// ppcoin: optional setting to unlock wallet for block minting only;
-//         serves to disable the trivial sendmoney when OS account compromised
-bool fWalletUnlockMintOnly = false;
 
 bool CWallet::Unlock(const SecureString& strWalletPassphrase)
 {
@@ -1038,7 +1042,10 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
                 if (!(pcoin->IsSpent(i)) && IsMine(pcoin->vout[i]) && pcoin->vout[i].nValue > 0 &&
                  (!coinControl || !coinControl->HasSelected() || coinControl->IsSelected((*it).first, i)))
                     vCoins.push_back(COutput(pcoin, i, pcoin->GetDepthInMainChain()));
-        }
+
+        sort(vCoins.begin(), vCoins.end(), CompareAgeOnly); // found available coins so sort in age order (TK)
+        reverse(vCoins.begin(), vCoins.end()); // and return vector with coins sorted from newest to oldest (TK)
+       }
     }
 }
 
@@ -1119,7 +1126,8 @@ bool CWallet::SelectCoinsMinConf(int64 nTargetValue, unsigned int nSpendTime, in
     vector<pair<int64, pair<const CWalletTx*,unsigned int> > > vValue;
     int64 nTotalLower = 0;
 
-    random_shuffle(vCoins.begin(), vCoins.end(), GetRandInt);
+// Don't shuffle - we want to use newest coin pile/s possible to stop hurting coin age for minting!! (TK)
+//    random_shuffle(vCoins.begin(), vCoins.end(), GetRandInt);
 
     BOOST_FOREACH(COutput output, vCoins)
     {
@@ -1137,13 +1145,15 @@ bool CWallet::SelectCoinsMinConf(int64 nTargetValue, unsigned int nSpendTime, in
 
         pair<int64,pair<const CWalletTx*,unsigned int> > coin = make_pair(n,make_pair(pcoin, i));
 
-        if (n == nTargetValue)
+/*        if (n == nTargetValue)  // first one of any size >= target amount wins, we don't want this! (TK)
         {
             setCoinsRet.insert(coin.second);
             nValueRet += coin.first;
             return true;
         }
-        else if (n < nTargetValue + CENT)
+        else
+*/
+        if (n < nTargetValue + CENT)
         {
             vValue.push_back(coin);
             nTotalLower += n;
@@ -1154,7 +1164,7 @@ bool CWallet::SelectCoinsMinConf(int64 nTargetValue, unsigned int nSpendTime, in
         }
     }
 
-    if (nTotalLower == nTargetValue)
+/*    if (nTotalLower == nTargetValue) // nor this (TK)
     {
         for (unsigned int i = 0; i < vValue.size(); ++i)
         {
@@ -1163,6 +1173,7 @@ bool CWallet::SelectCoinsMinConf(int64 nTargetValue, unsigned int nSpendTime, in
         }
         return true;
     }
+*/
 
     if (nTotalLower < nTargetValue)
     {
@@ -1174,7 +1185,8 @@ bool CWallet::SelectCoinsMinConf(int64 nTargetValue, unsigned int nSpendTime, in
     }
 
     // Solve subset sum by stochastic approximation
-    sort(vValue.rbegin(), vValue.rend(), CompareValueOnly());
+    // Don't sort by value - we want to prefer newest to oldest (TK)
+    // sort(vValue.rbegin(), vValue.rend(), CompareValueOnly());
     vector<char> vfBest;
     int64 nBest;
 
@@ -1246,7 +1258,7 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64> >& vecSend, CW
         return false;
 
     wtxNew.BindWallet(this);
-		
+
     // transaction comment
     wtxNew.strTxComment = strTxComment;
     if (wtxNew.strTxComment.length() > MAX_TX_COMMENT_LEN)
@@ -1316,7 +1328,7 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64> >& vecSend, CW
                      // coin control: send change to custom address
                      if (coinControl && !boost::get<CNoDestination>(&coinControl->destChange))
                          scriptChange.SetDestination(coinControl->destChange);
- 
+
                      // no coin control: send change to newly generated address
                      else
                      {
@@ -1326,10 +1338,10 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64> >& vecSend, CW
                          //  If we reused the old key, it would be possible to add code to look for and
                          //  rediscover unknown transactions that were written with keys of ours to recover
                          //  post-backup change.
- 
+
                          // Reserve a new key pair from key pool
                          CPubKey vchPubKey = reservekey.GetReservedKey();
- 
+
                          scriptChange.SetDestination(vchPubKey.GetID());
                      }
                     }
@@ -1420,7 +1432,7 @@ uint64 CWallet::GetStakeMintPower(const CKeyStore& keystore)
             continue;
 
         // Do not count input that is still too young
-        if (pcoin.first->nTime + nStakeMinAge > GetTime())
+        if(pcoin.first->nTime + nStakeMinAgeFixed > GetTime())
             continue;
 
         bnCentSecond += CBigNum(pcoin.first->vout[pcoin.second].nValue) * (GetTime() - pcoin.first->nTime) / CENT;
@@ -1439,23 +1451,23 @@ uint64 CWallet::GetStakeMintPower(const CKeyStore& keystore)
  {
      // Choose coins to use
      int64 nBalance = GetBalance();
- 
+
      int64 nReserveBalance = 0;
      if (mapArgs.count("-reservebalance") && !ParseMoney(mapArgs["-reservebalance"], nReserveBalance))
          return error("GetStakeWeight : invalid reserve balance amount");
      if (nBalance <= nReserveBalance)
          return false;
- 
+
      set<pair<const CWalletTx*,unsigned int> > setCoins;
      vector<const CWalletTx*> vwtxPrev;
      int64 nValueIn = 0;
- 
+
      if (!SelectCoins(nBalance - nReserveBalance, GetTime(), setCoins, nValueIn))
          return false;
- 
+
      if (setCoins.empty())
          return false;
- 
+
      CTxDB txdb("r");
      BOOST_FOREACH(PAIRTYPE(const CWalletTx*, unsigned int) pcoin, setCoins)
      {
@@ -1465,29 +1477,29 @@ uint64 CWallet::GetStakeMintPower(const CKeyStore& keystore)
              if (!txdb.ReadTxIndex(pcoin.first->GetHash(), txindex))
                  continue;
          }
- 
+
          int64 nTimeWeight = GetWeight((int64)pcoin.first->nTime, (int64)GetTime());
          CBigNum bnCoinDayWeight = CBigNum(pcoin.first->vout[pcoin.second].nValue) * nTimeWeight / COIN / (24 * 60 * 60);
- 
+
          // Weight is greater than zero
          if (nTimeWeight > 0)
          {
              nWeight += bnCoinDayWeight.getuint64();
          }
- 
+
          // Weight is greater than zero, but the maximum value isn't reached yet
          if (nTimeWeight > 0 && nTimeWeight < nStakeMaxAge)
          {
              nMinWeight += bnCoinDayWeight.getuint64();
          }
- 
+
          // Maximum weight was reached
          if (nTimeWeight == nStakeMaxAge)
          {
              nMaxWeight += bnCoinDayWeight.getuint64();
          }
      }
- 
+
      return true;
  }
 
@@ -1496,18 +1508,18 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
 {
     // The following split & combine thresholds are important to security
     // Should not be adjusted if you don't understand the consequences
-    static unsigned int nStakeSplitAge = (60 * 60 * 24 * 30); // Age under which amounts are split in two
-    int64 nCombineThreshold = 100 * COIN; // amount to combine smaller coints into
+    static unsigned int nStakeSplitAge = fTestNet ? (60 * 60) : (60 * 60 * 24 * 30); // Age under which amounts are split in two
+    int64 nCombineThreshold = fTestNet ? (100 * COIN) : (150 * COIN);
 
     CBigNum bnTargetPerCoinDay;
     bnTargetPerCoinDay.SetCompact(nBits);
 
     txNew.vin.clear();
     txNew.vout.clear();
-    // Mark coin stake transaction
-    CScript scriptEmpty;
-    scriptEmpty.clear();
-    txNew.vout.push_back(CTxOut(0, scriptEmpty));
+
+    /* Wait to mark non-reactor stakes until after we know what coins are
+     * staking. */
+
     // Choose coins to use
     int64 nBalance = GetBalance();
     int64 nReserveBalance = 0;
@@ -1527,6 +1539,9 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
 
     int64 nCredit = 0;
     CScript scriptPubKeyKernel;
+
+    int64 reactorStakeValue;
+
     BOOST_FOREACH(PAIRTYPE(const CWalletTx*, unsigned int) pcoin, setCoins)
     {
         CTxDB txdb("r");
@@ -1546,15 +1561,15 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
         }
 
         static int nMaxStakeSearchInterval = 60;
-		
-        if (block.GetBlockTime() + nStakeMinAge > txNew.nTime - nMaxStakeSearchInterval)
+
+        if(block.GetBlockTime() + nStakeMinAgeFixed > txNew.nTime - nMaxStakeSearchInterval)
             continue; // only count coins meeting min age requirement
 
         bool fKernelFound = false;
         for (unsigned int n=0; n<min(nSearchInterval,(int64)nMaxStakeSearchInterval) && !fKernelFound && !fShutdown; n++)
         {
             // printf(">> In.....\n");
-            // Search backward in time from the given txNew timestamp 
+            // Search backward in time from the given txNew timestamp
             // Search nSearchInterval seconds back up to nMaxStakeSearchInterval
             uint256 hashProofOfStake = 0;
             COutPoint prevoutStake = COutPoint(pcoin.first->GetHash(), pcoin.second);
@@ -1596,7 +1611,38 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
                 else
                     scriptPubKeyOut = scriptPubKeyKernel;
 
-                txNew.nTime -= n; 
+                txNew.nTime -= n;
+                /* We found a kernel so we can check if it's address matches a
+                 * reactor address. Do this now, before splitting the stake so
+                 * that reactors don't split their stake and before adding the
+                 * PubKeyOut to the transaction */
+                CScript scriptStake;
+                unsigned int valid_starting;
+                unsigned int valid_until;
+                string reactordbfile = GetReactorDBFile();
+                /* Check if the staking address is a reactor and if it is active
+                 * and if so mark the stake as a reactor stake (otherwise mark
+                 * it as a standard stake); if it is a reactor stake we also
+                 * change the nComebineThreshold to be the size of the reactor.
+                 *
+                 * We pass the DB file because we run CheckReactorAddr() from
+                 * within IsReactor(), this allows tests to be ran on a mockdb
+                 * instead of in the diamond directory on the system. */
+                if (CReactorDB(reactordbfile).IsReactor(reactordbfile, scriptPubKeyOut, reactorStakeValue, valid_starting, valid_until)) {
+                    // Check that the reactor is active.
+                    if (txNew.nTime >= valid_starting && (txNew.nTime < valid_until || valid_until == (unsigned int)-1)) {
+                        scriptStake << OP_REACTOR;
+                        nCombineThreshold = reactorStakeValue * COIN;
+                    }
+                } else {
+                    // Initialize empty value
+                    reactorStakeValue = 0;
+                    /* Just make sure the script being pushed to vout is
+                     * blank to mark the stake as a standard stake. */
+                     scriptStake.clear();
+                }
+
+                txNew.vout.push_back(CTxOut(0, scriptStake));
                 txNew.vin.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
                 nCredit += pcoin.first->vout[pcoin.second].nValue;
 
@@ -1604,7 +1650,8 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
 
                 vwtxPrev.push_back(pcoin.first);
                 txNew.vout.push_back(CTxOut(0, scriptPubKeyOut));
-                if (block.GetBlockTime() + nStakeSplitAge > txNew.nTime)
+                // Don't split the stake on reactors.
+                if (block.GetBlockTime() + nStakeSplitAge > txNew.nTime && reactorStakeValue == 0)
                     txNew.vout.push_back(CTxOut(0, scriptPubKeyOut)); //split stake
 
                 if (fDebug && GetBoolArg("-printcoinstake"))
@@ -1633,13 +1680,15 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
             if (txNew.vin.size() >= 100)
                 break;
             // Stop adding more inputs if value is already pretty significant
-            if (nCredit > nCombineThreshold)
+            if (nCredit >= nCombineThreshold)
                 break;
             // Stop adding inputs if reached reserve limit
             if (nCredit + pcoin.first->vout[pcoin.second].nValue > nBalance - nReserveBalance)
                 break;
+            if (nCredit + pcoin.first->vout[pcoin.second].nValue == nBalance) // always leave 2 blocks min - don't combine entire wallet into one block! (TK)
+                break;
             // Do not add additional significant input
-            if (pcoin.first->vout[pcoin.second].nValue > nCombineThreshold)
+            if (pcoin.first->vout[pcoin.second].nValue >= nCombineThreshold)
                 continue;
             // Do not add input that is still too young
             if (pcoin.first->nTime + nStakeMaxAge > txNew.nTime)
@@ -1649,6 +1698,8 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
             vwtxPrev.push_back(pcoin.first);
         }
     }
+
+    bool scrapedstake = false;
     // Calculate coin age reward
     {
         uint64 nCoinAge;
@@ -1657,14 +1708,51 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
 
         if (!txNew.GetCoinAge(txdb, nCoinAge))
             return error("CreateCoinStake : failed to calculate coin age");
-        nCredit += GetProofOfStakeReward(nCoinAge, nBits, txNew.nTime, pIndex0->nHeight);
+
+        if (reactorStakeValue > 0) {
+            int64 addressbalance;
+            if (GetSingleAddressBalance(txNew.vout[1].scriptPubKey, addressbalance) > ((reactorStakeValue * COIN * 2) - 1 * COIN) && reactorStakeValue != 100)
+                return error("CreateCoinStake : address balance is too high for reactor size; address balance %" PRI64d "; reactor size %" PRI64d "\n", addressbalance, reactorStakeValue);
+
+            /* If this is a reactor check that the size of the stake matches the
+             * requirements of the given reactor.*/
+            if (nCredit < (reactorStakeValue * COIN))
+                return error("CreateCoinStake : credit doesn't meet requirement for reactor stake; credit %" PRI64d "; reactor size %" PRI64d "\n", nCredit, reactorStakeValue);
+
+            if (nCredit > ((reactorStakeValue * COIN * 2) - 1 * COIN) && reactorStakeValue != 100)
+                return error("CreateCoinStake : credit exceeds value of reactor; credit %" PRI64d "; reactor size %" PRI64d "\n", nCredit, reactorStakeValue * COIN);
+        }
+
+        int64 nReward = GetProofOfStakeReward(nCoinAge, nBits, txNew.nTime, pIndex0->nHeight, GetReactorRate(reactorStakeValue, nCredit));
+
+        /* Check the staking address against the scrape addresses in the
+         * walletdb and see if it has a scrape address for it, if it does
+         * send the reward to the scrape address. */
+        CTxDestination address;
+        ExtractDestination(txNew.vout[1].scriptPubKey, address);
+        CBitcoinAddress addr(address);
+
+        string strScrapeAddress;
+        if (HasScrapeAddress(addr.ToString()) && ReadScrapeAddress(addr.ToString(), strScrapeAddress)) {
+            CScript stakescript;
+            CBitcoinAddress scrapeaddr(strScrapeAddress);
+            CTxDestination scrape = scrapeaddr.Get();
+            if (fDebug && GetBoolArg("-printcoinstake"))
+                strprintf("CreateCoinStake : a scrape address has been set for %s to %s, sending reward there.\n", addr.ToString().c_str(), scrapeaddr.ToString().c_str());
+
+            stakescript.SetDestination(scrape);
+            txNew.vout.push_back(CTxOut(nReward, stakescript));
+            scrapedstake = true;
+        } else {
+            nCredit += nReward;
+        }
     }
 
     int64 nMinFee = 0;
     while (true)
     {
         // Set output amount
-        if (txNew.vout.size() == 3)
+        if ((!scrapedstake && txNew.vout.size() == 3) || txNew.vout.size() == 4)
         {
             txNew.vout[1].nValue = ((nCredit - nMinFee) / 2 / CENT) * CENT;
             txNew.vout[2].nValue = nCredit - nMinFee - txNew.vout[1].nValue;
@@ -1767,8 +1855,7 @@ string CWallet::SendMoney(CScript scriptPubKey, int64 nValue, CWalletTx& wtxNew,
         printf("SendMoney() : %s", strError.c_str());
         return strError;
     }
-    if (fWalletUnlockMintOnly)
-    {
+    if(fStakingOnly) {
         string strError = _("Error: Wallet unlocked for block minting only, unable to create transaction.");
         printf("SendMoney() : %s", strError.c_str());
         return strError;
@@ -2086,6 +2173,33 @@ int64 CWallet::GetOldestKeyPoolTime()
         return GetTime();
     ReturnKey(nIndex);
     return keypool.nTime;
+}
+
+/* Return false if the address balance being looked up is not an address in this
+ * wallet. */
+bool CWallet::GetSingleAddressBalance(CTxDestination address, int64 &balance)
+{
+    std::map<CTxDestination, int64> addressbalances = GetAddressBalances();
+    /* If the address is not ours it won't be in the addressbalances and
+     * std::map::at will throw an out_of_range exception. If thrown, catch it
+     * and return false.*/
+    try {
+        balance = addressbalances.at(address);
+        return true;
+    } catch (const std::out_of_range &oor) {
+        return false;
+    }
+}
+
+/* Overload for the above that allows a CScript instead of CTxDestination.
+ * Just return the above if an address is extracted from the key. */
+bool CWallet::GetSingleAddressBalance(CScript scriptPubKey, int64 &balance)
+{
+    CTxDestination addr;
+    if(!ExtractDestination(scriptPubKey, addr))
+        return false;
+
+    return GetSingleAddressBalance(addr, balance);
 }
 
 std::map<CTxDestination, int64> CWallet::GetAddressBalances()

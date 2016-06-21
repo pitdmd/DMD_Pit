@@ -1,6 +1,6 @@
 TEMPLATE = app
 TARGET = diamond-qt
-VERSION = 2.0.5.7
+VERSION = 2.1.0.3
 INCLUDEPATH += src src/json src/qt
 QT += core gui network
 DEFINES += QT_GUI BOOST_THREAD_USE_LIB BOOST_SPIRIT_THREADSAFE BOOST_THREAD_PROVIDES_GENERIC_SHARED_MUTEX_ON_WIN __NO_SYSTEM_INCLUDES
@@ -228,7 +228,9 @@ HEADERS += src/qt/bitcoingui.h \
     src/hash.h \
     src/scrypt.h \
     src/sph_groestl.h \
-    src/sph_types.h
+    src/sph_types.h \
+    src/auxpow.h \
+    src/reactors.h
 
 SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/qt/transactiontablemodel.cpp \
@@ -299,7 +301,10 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/pbkdf2.cpp \
     src/hash.cpp \
     src/scrypt.cpp \
-    src/groestl.c
+    src/groestl.c \
+    src/auxpow.cpp \
+    src/reactors.cpp \
+    src/reactorlist.cpp
 
 RESOURCES += \
     src/qt/bitcoin.qrc

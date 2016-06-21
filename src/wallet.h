@@ -1,5 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
+// Copyright (c) 2015-2016 Nathan Bass "IngCr3at1on"
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef BITCOIN_WALLET_H
@@ -18,7 +19,6 @@
 #include "util.h"
 #include "walletdb.h"
 
-extern bool fWalletUnlockMintOnly;
 class CAccountingEntry;
 class CWalletTx;
 class CReserveKey;
@@ -32,8 +32,9 @@ enum WalletFeature
 
     FEATURE_WALLETCRYPT = 40000, // wallet encryption
     FEATURE_COMPRPUBKEY = 60000, // compressed public keys
+    FEATURE_SCRAPEADDRESS = 60001, // scrape addresses for staking wallets
 
-    FEATURE_LATEST = 60000
+    FEATURE_LATEST = 60001
 };
 
 
@@ -183,6 +184,8 @@ public:
     bool CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int64 nSearchInterval, CTransaction& txNew);
     std::string SendMoney(CScript scriptPubKey, int64 nValue, CWalletTx& wtxNew, bool fAskFee=false, std::string strTxComment = "");
     std::string SendMoneyToDestination(const CTxDestination &address, int64 nValue, CWalletTx& wtxNew, bool fAskFee=false, std::string strTxComment = "");
+    bool GetSingleAddressBalance(CTxDestination address, int64 &balance);
+    bool GetSingleAddressBalance(CScript scriptPubKey, int64 &balance);
 
     bool NewKeyPool();
     bool TopUpKeyPool();
@@ -313,6 +316,30 @@ public:
      * @note called with lock cs_wallet held.
      */
     boost::signals2::signal<void (CWallet *wallet, const uint256 &hashTx, ChangeType status)> NotifyTransactionChanged;
+
+    bool WriteScrapeAddress(const std::string strAddress, const std::string strScrapeAddress)
+    {
+        LOCK(cs_wallet);
+        return CWalletDB(strWalletFile).WriteScrapeAddress(strAddress, strScrapeAddress);
+    }
+
+    bool EraseScrapeAddress(const std::string strAddress)
+    {
+        LOCK(cs_wallet);
+        return CWalletDB(strWalletFile).EraseScrapeAddress(strAddress);
+    }
+
+    bool ReadScrapeAddress(const std::string strAddress, std::string &strScrapeAddress)
+    {
+        LOCK(cs_wallet);
+        return CWalletDB(strWalletFile).ReadScrapeAddress(strAddress, strScrapeAddress);
+    }
+
+    bool HasScrapeAddress(const std::string strAddress)
+    {
+        LOCK(cs_wallet);
+        return CWalletDB(strWalletFile).HasScrapeAddress(strAddress);
+    }
 };
 
 /** A key allocated from the key pool. */

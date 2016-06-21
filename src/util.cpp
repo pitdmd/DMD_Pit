@@ -79,6 +79,7 @@ bool fNoListen = false;
 bool fLogTimestamps = true;
 CMedianFilter<int64> vTimeOffsets(200,0);
 bool fReopenDebugLog = false;
+bool fStakingOnly = false;
 
 // Init OpenSSL library multithreading support
 static CCriticalSection** ppmutexOpenSSL;

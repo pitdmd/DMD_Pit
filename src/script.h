@@ -189,7 +189,8 @@ enum opcodetype
     OP_NOP9 = 0xb8,
     OP_NOP10 = 0xb9,
 
-
+    // Reactors
+    OP_REACTOR = 0xc0,
 
     // template matching params
     OP_SMALLINTEGER = 0xfa,
