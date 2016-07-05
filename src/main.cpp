@@ -1008,7 +1008,7 @@ int64 GetProofOfStakeReward(int64 nCoinAge, unsigned int nBits, unsigned int nTi
         nRewardCoinYear = MAX_MINT_PROOF_OF_STAKE;
         if(fTestNet) {
             nRewardCoinYear = 25 * CENT;
-            nRewardCoinYear = GetAdjustedCoinYear(nRewardCoinYear, reactorRate);
+            nRewardCoinYear = GetAdjustedCoinYear(nRewardCoinYear, nTime, reactorRate);
             nSubsidy = nCoinAge * nRewardCoinYear / 365;
         } else {
 		// Diamond v2 PoS spec:
@@ -1025,7 +1025,7 @@ int64 GetProofOfStakeReward(int64 nCoinAge, unsigned int nBits, unsigned int nTi
 			else
 			    nRewardCoinYear = 50 * CENT;
 
-            nRewardCoinYear = GetAdjustedCoinYear(nRewardCoinYear, reactorRate);
+            nRewardCoinYear = GetAdjustedCoinYear(nRewardCoinYear, nTime, reactorRate);
 			nSubsidy = nCoinAge * nRewardCoinYear / 365;
 		}
 

@@ -43,7 +43,7 @@ void InflateReactorDB(std::string strFileName);
 float GetReactorRate(int64 /*reactorStakeValue*/, int64 /*nValueIn*/);
 /* Get the adjusted coin year based on the reactorRate (depending on the time
  * in relation to REACTOR_FIX_TIME. */
-int64 GetAdjustedCoinYear(int64 /*nRewardCoinYear*/, float /*reactorRate*/);
+int64 GetAdjustedCoinYear(int64 /*nRewardCoinYear*/, unsigned int /*nTime*/, float /*reactorRate*/);
 
 inline std::string GetReactorDBFile() {
     return (GetDataDir() / "reactors.dat").string();
