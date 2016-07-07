@@ -1025,8 +1025,10 @@ int64 GetProofOfStakeReward(int64 nCoinAge, unsigned int nBits, unsigned int nTi
 			else
 			    nRewardCoinYear = 50 * CENT;
 
-            nRewardCoinYear = GetAdjustedCoinYear(nRewardCoinYear, nTime, reactorRate);
-			nSubsidy = nCoinAge * nRewardCoinYear / 365;
+            if(nTime > REACTOR_START_TIME)
+            	nRewardCoinYear = GetAdjustedCoinYear(nRewardCoinYear, nTime, reactorRate);
+            	
+		nSubsidy = nCoinAge * nRewardCoinYear / 365;
 		}
 
         if (fDebug && GetBoolArg("-printcreation"))
