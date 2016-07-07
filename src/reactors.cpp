@@ -137,20 +137,20 @@ if(reactorStakeValue == 100) {
     return 0;
 }
 
-int64 GetAdjustedCoinYear(int64 nRewardCoinYear, float reactorRate) {
+int64 GetAdjustedCoinYear(int64 nRewardCoinYear, unsigned int nTime, float reactorRate) {
     unsigned int fix_time = REACTOR_FIX_TIME;
     if (fTestNet)
         fix_time = REACTOR_TEST_FIX_TIME;
     /* For 30 days after the fix_time we want to boost the normal stake rate
      * by 30%. */
-    if (GetTime() >= fix_time && GetTime() < fix_time+(60*60*24*30)) {
+    if (nTime >= fix_time && nTime < fix_time+(60*60*24*30)) {
         nRewardCoinYear = 30 * CENT;
-        }    
+        }
     /* If the reactor rate is greater than 0 adjust the nRewardCoinYear by
      * the given rate. */
     if (reactorRate > 0) {
         // If prior to fix cast reactorRate to int to avoid mini-forks.
-        if (GetTime() < fix_time) {
+        if (nTime < fix_time) {
             nRewardCoinYear = nRewardCoinYear * (int)reactorRate;
         } else {
             nRewardCoinYear = nRewardCoinYear * reactorRate;
