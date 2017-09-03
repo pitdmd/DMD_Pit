@@ -1,3 +1,13 @@
+please be aware this codebase is soon set inactive
+DMD Diamond move forward to DMDv3 codebase
+balance from DMDv2 addresses will be available with same private keys in DMDv3
+
+to stay up to date following us on bitcointalk 
+https://bitcointalk.org/index.php?topic=580725.0
+and twitter @dmdcoin
+
+
+------------------------------------------
 Diamond (DMD)
 
 Instructions for compiling in Linux.
