@@ -1,3 +1,7 @@
+------------------------------------------
+Diamond (DMD) Old Version - Do not use this Source !!
+
+
 please be aware this codebase is soon set inactive
 DMD Diamond move forward to DMDv3 codebase
 balance from DMDv2 addresses will be available with same private keys in DMDv3
