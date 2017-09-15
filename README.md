@@ -1,5 +1,5 @@
 ------------------------------------------
-Diamond (DMD) Old Version - Do not use this Source !!
+* Diamond (DMD) Old Version - Do not use this Source !!*
 
 
 please be aware this codebase is soon set inactive
