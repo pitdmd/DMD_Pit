@@ -79,6 +79,7 @@ bool fNoListen = false;
 bool fLogTimestamps = true;
 CMedianFilter<int64> vTimeOffsets(200,0);
 bool fReopenDebugLog = false;
+bool fStakingOnly = false;
 
 // Init OpenSSL library multithreading support
 static CCriticalSection** ppmutexOpenSSL;
@@ -1120,8 +1121,6 @@ boost::filesystem::path GetConfigFile()
 {
     boost::filesystem::path pathConfigFile(GetArg("-conf", "Diamond.conf"));
     if (!pathConfigFile.is_complete()) pathConfigFile = GetDataDir(false) / pathConfigFile;
-    int i = 0;
-    i++;
     return pathConfigFile;
 }
 

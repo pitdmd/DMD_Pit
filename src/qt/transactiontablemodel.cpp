@@ -295,14 +295,19 @@ QString TransactionTableModel::formatTxStatus(const TransactionRecord *wtx) cons
         status = tr("Confirmed (%1 confirmations)").arg(wtx->status.depth);
         break;
     }
-    if(wtx->type == TransactionRecord::Generated  || wtx->type == TransactionRecord::StakeMint)
+    if(wtx->type == TransactionRecord::Generated  || wtx->type == TransactionRecord::StakeMint || wtx->type == TransactionRecord::ExternalScrape || wtx->type == TransactionRecord::LocalScrape || wtx->type == TransactionRecord::ScrapeToExternal)
     {
         switch(wtx->status.maturity)
         {
         case TransactionStatus::Immature:
-            status += "\n" + tr("Mined balance will be available when it matures in %n more block(s)", "", wtx->status.matures_in);
+            wtx->type == TransactionRecord::ScrapeToExternal ? status += "\n" + tr("Minted balance will be available at reward address in %n more blocks", "",
+                                                                              wtx->status.matures_in) :
+                                                               status += "\n" + tr("Mined balance will be available in %n more blocks", "",
+                                                                              wtx->status.matures_in);
             break;
         case TransactionStatus::Mature:
+            if (wtx->type == TransactionRecord::ScrapeToExternal)
+                status += "\n" + tr("Minted balance is available at the reward address not found in this wallet.");
             break;
         case TransactionStatus::MaturesWarning:
             status += "\n" + tr("This block was not received by any other nodes and will probably not be accepted!");
@@ -360,9 +365,15 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
     case TransactionRecord::SendToSelf:
         return tr("Payment to yourself");
     case TransactionRecord::StakeMint:
-		return tr("Mint");
+		return tr("Minted");
     case TransactionRecord::Generated:
         return tr("Mined");
+    case TransactionRecord::ExternalScrape:
+        return tr("External scrape");
+    case TransactionRecord::LocalScrape:
+        return tr("Local scrape");
+    case TransactionRecord::ScrapeToExternal:
+        return tr("Scraped to external");
     default:
         return QString();
     }
@@ -373,12 +384,15 @@ QVariant TransactionTableModel::txAddressDecoration(const TransactionRecord *wtx
     switch(wtx->type)
     {
     case TransactionRecord::Generated:
+        {
+            QString str = BitcoinUnits::format(walletModel->getOptionsModel()->getDisplayUnit(), wtx->credit + wtx->debit);
+            return QIcon(":/icons/tx_mined");
+        }
     case TransactionRecord::StakeMint:
-		{
-			QString str = BitcoinUnits::format(walletModel->getOptionsModel()->getDisplayUnit(), wtx->credit + wtx->debit);
-			float dd = str.toFloat();
-			return QIcon(":/icons/tx_mined");
-		}
+        {
+            QString str = BitcoinUnits::format(walletModel->getOptionsModel()->getDisplayUnit(), wtx->credit + wtx->debit);
+            return QIcon(":/icons/tx_minted");
+        }
     case TransactionRecord::RecvWithAddress:
     case TransactionRecord::RecvFromOther:
         return QIcon(":/icons/tx_input");
@@ -400,6 +414,9 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord *wtx, b
     case TransactionRecord::RecvWithAddress:
     case TransactionRecord::SendToAddress:
     case TransactionRecord::Generated:
+    case TransactionRecord::ExternalScrape:
+    case TransactionRecord::LocalScrape:
+    case TransactionRecord::ScrapeToExternal:
         return lookupAddress(wtx->address, tooltip);
     case TransactionRecord::SendToOther:
         return QString::fromStdString(wtx->address);
@@ -417,6 +434,9 @@ QVariant TransactionTableModel::addressColor(const TransactionRecord *wtx) const
     case TransactionRecord::RecvWithAddress:
     case TransactionRecord::SendToAddress:
     case TransactionRecord::Generated:
+    case TransactionRecord::ExternalScrape:
+    case TransactionRecord::LocalScrape:
+    case TransactionRecord::ScrapeToExternal:
         {
         QString label = walletModel->getAddressTableModel()->labelForAddress(QString::fromStdString(wtx->address));
         if(label.isEmpty())
@@ -435,7 +455,9 @@ QString TransactionTableModel::formatTxAmount(const TransactionRecord *wtx, bool
     QString str = BitcoinUnits::format(walletModel->getOptionsModel()->getDisplayUnit(), wtx->credit + wtx->debit);
     if(showUnconfirmed)
     {
-        if(!wtx->status.confirmed || wtx->status.maturity != TransactionStatus::Mature)
+        /* Always display ScrapeToExternal transactions as if the coins are
+         * immature because they are not and will never be in this wallet. */
+        if(!wtx->status.confirmed || wtx->status.maturity != TransactionStatus::Mature || wtx->type == TransactionRecord::ScrapeToExternal)
         {
             str = QString("[") + str + QString("]");
         }
@@ -445,7 +467,7 @@ QString TransactionTableModel::formatTxAmount(const TransactionRecord *wtx, bool
 
 QVariant TransactionTableModel::txStatusDecoration(const TransactionRecord *wtx) const
 {
-    if(wtx->type == TransactionRecord::Generated || wtx->type == TransactionRecord::StakeMint)
+    if(wtx->type == TransactionRecord::Generated || wtx->type == TransactionRecord::StakeMint || wtx->type == TransactionRecord::ExternalScrape || wtx->type == TransactionRecord::LocalScrape)
     {
         switch(wtx->status.maturity)
         {

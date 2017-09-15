@@ -1,5 +1,6 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
+// Copyright (c) 2015-2016 Nathan Bass "IngCr3at1on"
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -8,12 +9,16 @@
 #include "bitcoinrpc.h"
 #include "init.h"
 #include "base58.h"
+#include "reactors.h"
 
 using namespace json_spirit;
 using namespace std;
 
 int64 nWalletUnlockTime;
 static CCriticalSection cs_nWalletUnlockTime;
+
+// were to deposit change
+CTxDestination changeAddress = CNoDestination();
 
 extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, json_spirit::Object& entry);
 
@@ -28,8 +33,9 @@ void EnsureWalletIsUnlocked()
 {
     if (pwalletMain->IsLocked())
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
-    if (fWalletUnlockMintOnly)
-        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Wallet unlocked for block minting only.");
+
+    if(fStakingOnly)
+      throw(JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Wallet unlocked for staking only."));
 }
 
 void WalletTxToJSON(const CWalletTx& wtx, Object& entry)
@@ -280,9 +286,9 @@ Value getaddressesbyaccount(const Array& params, bool fHelp)
 
 Value sendtoaddress(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 2 || params.size() > 4)
+    if (fHelp || params.size() < 2 || params.size() > 5)
         throw runtime_error(
-		"sendtoaddress <Diamondaddress> <amount> [comment] [comment-to]\n"
+		"sendtoaddress <Diamondaddress> <amount> [comment] [comment-to] [tx-comment]\n"
             "<amount> is a real and is rounded to the nearest 0.000001"
             + HelpRequiringPassphrase());
 
@@ -303,10 +309,20 @@ Value sendtoaddress(const Array& params, bool fHelp)
     if (params.size() > 3 && params[3].type() != null_type && !params[3].get_str().empty())
         wtx.mapValue["to"]      = params[3].get_str();
 
+      // Transaction comment
+      std::string txcomment;
+    if (params.size() > 4 && params[4].type() != null_type && !params[4].get_str().empty())
+      {
+        txcomment = params[4].get_str();
+              if (txcomment.length() > MAX_TX_COMMENT_LEN)
+                      txcomment.resize(MAX_TX_COMMENT_LEN);
+      }
+
+
     if (pwalletMain->IsLocked())
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
 
-    string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, wtx);
+    string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, wtx, false, txcomment);
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
 
@@ -515,12 +531,17 @@ int64 GetAccountBalance(CWalletDB& walletdb, const string& strAccount, int nMinD
         if (!wtx.IsFinal())
             continue;
 
-        int64 nGenerated, nReceived, nSent, nFee;
-        wtx.GetAccountAmounts(strAccount, nGenerated, nReceived, nSent, nFee);
+        int64 nGeneratedImmature, nGeneratedMature, nReceived, nSent, nFee;
+        wtx.GetAccountAmounts(strAccount, nGeneratedImmature, nGeneratedMature, nReceived, nSent, nFee);
 
         if (nReceived != 0 && wtx.GetDepthInMainChain() >= nMinDepth)
             nBalance += nReceived;
-        nBalance += nGenerated - nSent - nFee;
+
+		if((wtx.IsCoinBaseOrStake() && wtx.GetDepthInMainChain() >= nMinDepth && wtx.GetBlocksToMaturity() == 0)
+			|| !wtx.IsCoinBaseOrStake())
+		{
+			nBalance += nGeneratedMature - nSent - nFee;
+		}
     }
 
     // Tally internal accounting entries
@@ -574,10 +595,15 @@ Value getbalance(const Array& params, bool fHelp)
                 BOOST_FOREACH(const PAIRTYPE(CTxDestination,int64)& r, listReceived)
                     nBalance += r.second;
             }
-            BOOST_FOREACH(const PAIRTYPE(CTxDestination,int64)& r, listSent)
+
+			if((wtx.IsCoinBaseOrStake() && wtx.GetDepthInMainChain() >= nMinDepth && wtx.GetBlocksToMaturity() == 0)
+				|| !wtx.IsCoinBaseOrStake())
+			{
+				BOOST_FOREACH(const PAIRTYPE(CTxDestination,int64)& r, listSent)
                 nBalance -= r.second;
-            nBalance -= allFee;
-            nBalance += allGeneratedMature;
+				nBalance -= allFee;
+				nBalance += allGeneratedMature;
+			}
         }
         return  ValueFromAmount(nBalance);
     }
@@ -646,9 +672,9 @@ Value movecmd(const Array& params, bool fHelp)
 
 Value sendfrom(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 3 || params.size() > 6)
+    if (fHelp || params.size() < 3 || params.size() > 7)
         throw runtime_error(
-		"sendfrom <fromaccount> <toDiamondaddress> <amount> [minconf=1] [comment] [comment-to]\n"
+		"sendfrom <fromaccount> <toDiamondaddress> <amount> [minconf=1] [comment] [comment-to] [tx-comment]\n"
             "<amount> is a real and is rounded to the nearest 0.000001"
             + HelpRequiringPassphrase());
 
@@ -672,6 +698,13 @@ Value sendfrom(const Array& params, bool fHelp)
     if (params.size() > 5 && params[5].type() != null_type && !params[5].get_str().empty())
         wtx.mapValue["to"]      = params[5].get_str();
 
+    std::string txcomment;
+    if (params.size() > 6 && params[6].type() != null_type && !params[6].get_str().empty())
+    {
+        txcomment = params[6].get_str();
+        if (txcomment.length() > MAX_TX_COMMENT_LEN)
+            txcomment.resize(MAX_TX_COMMENT_LEN);
+    }
     EnsureWalletIsUnlocked();
 
     // Check funds
@@ -680,7 +713,7 @@ Value sendfrom(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Account has insufficient funds");
 
     // Send
-    string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, wtx);
+    string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, wtx, false, txcomment);
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
 
@@ -690,9 +723,9 @@ Value sendfrom(const Array& params, bool fHelp)
 
 Value sendmany(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 2 || params.size() > 4)
+    if (fHelp || params.size() < 2 || params.size() > 5)
         throw runtime_error(
-		"sendmany <fromaccount> {address:amount,...} [minconf=1] [comment]\n"
+		"sendmany <fromaccount> {address:amount,...} [minconf=1] [comment] [tx-cmments]\n"
             "amounts are double-precision floating point numbers"
             + HelpRequiringPassphrase());
 
@@ -1139,23 +1172,34 @@ Value listaccounts(const Array& params, bool fHelp)
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); ++it)
     {
         const CWalletTx& wtx = (*it).second;
+
+		if(!wtx.IsFinal())
+			continue;
+
         int64 nGeneratedImmature, nGeneratedMature, nFee;
         string strSentAccount;
         list<pair<CTxDestination, int64> > listReceived;
         list<pair<CTxDestination, int64> > listSent;
         wtx.GetAmounts(nGeneratedImmature, nGeneratedMature, listReceived, listSent, nFee, strSentAccount);
-        mapAccountBalances[strSentAccount] -= nFee;
-        BOOST_FOREACH(const PAIRTYPE(CTxDestination, int64)& s, listSent)
-            mapAccountBalances[strSentAccount] -= s.second;
         if (wtx.GetDepthInMainChain() >= nMinDepth)
         {
-            mapAccountBalances[""] += nGeneratedMature;
             BOOST_FOREACH(const PAIRTYPE(CTxDestination, int64)& r, listReceived)
                 if (pwalletMain->mapAddressBook.count(r.first))
                     mapAccountBalances[pwalletMain->mapAddressBook[r.first]] += r.second;
                 else
                     mapAccountBalances[""] += r.second;
         }
+
+		if((wtx.IsCoinBaseOrStake() && wtx.GetDepthInMainChain() >= nMinDepth && wtx.GetBlocksToMaturity() == 0)
+			|| !wtx.IsCoinBaseOrStake())
+		{
+			mapAccountBalances[strSentAccount] -= nFee;
+			mapAccountBalances[""] += nGeneratedMature;
+
+			BOOST_FOREACH(const PAIRTYPE(CTxDestination, int64)& s, listSent)
+				mapAccountBalances[strSentAccount] -= s.second;
+
+		}
     }
 
     list<CAccountingEntry> acentries;
@@ -1423,11 +1467,11 @@ Value walletpassphrase(const Array& params, bool fHelp)
     int64* pnSleepTime = new int64(params[1].get_int64());
     NewThread(ThreadCleanWalletPassphrase, pnSleepTime);
 
-    // ppcoin: if user OS account compromised prevent trivial sendmoney commands
-    if (params.size() > 2)
-        fWalletUnlockMintOnly = params[2].get_bool();
+    /* Disables some wallet functionality if unlocked for staking only */
+    if(params.size() > 2)
+      fStakingOnly = params[2].get_bool();
     else
-        fWalletUnlockMintOnly = false;
+      fStakingOnly = false;
 
     return Value::null;
 }
@@ -1735,7 +1779,7 @@ Value makekeypair(const Array& params, bool fHelp)
     string strPrefix = "";
     if (params.size() > 0)
         strPrefix = params[0].get_str();
- 
+
     CKey key;
     key.MakeNewKey(false);
 
@@ -1744,4 +1788,215 @@ Value makekeypair(const Array& params, bool fHelp)
     result.push_back(Pair("PrivateKey", HexStr<CPrivKey::iterator>(vchPrivKey.begin(), vchPrivKey.end())));
     result.push_back(Pair("PublicKey", HexStr(key.GetPubKey().Raw())));
     return result;
+}
+
+// danbi: set address for change
+Value setchangeaddress(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "setchangeaddress <Diamondaddress>\n"
+            "Sets the change deposit address.");
+
+    if (params[0].get_str() == "")
+    {
+        changeAddress = CNoDestination();
+    }
+    else
+    {
+        CBitcoinAddress address(params[0].get_str());
+        if (!address.IsValid())
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Diamond address");
+        changeAddress = address.Get();
+    }
+
+    return Value::null;
+}
+
+
+Value getchangeaddress(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+            "getchangeaddress\n"
+            "Returns the change deposit address.");
+
+    Value ret;
+
+    if (!CBitcoinAddress(changeAddress).IsValid())
+       ret = "";
+    else
+       ret = CBitcoinAddress(changeAddress).ToString();
+
+    return ret;
+}
+
+Value setscrapeaddress(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 2) {
+        string ret = "setscrapeaddress <staking address>, <address to stake to>\nSet an auto scrape address to send stake rewards to from a given address.";
+        if (pwalletMain->IsCrypted())
+            ret += "requires wallet passphrase to be set with walletpassphrase first";
+
+        throw runtime_error(ret);
+    }
+
+    EnsureWalletIsUnlocked();
+
+    string strAddress = params[0].get_str();
+    CBitcoinAddress address(strAddress);
+    string strScrapeAddress = params[1].get_str();
+    CBitcoinAddress scrapeAddress(strScrapeAddress);
+
+    if (!address.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address.");
+
+    if (address.Get() == scrapeAddress.Get())
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot set scrape address to the same as staking address.");
+
+    if (!IsMine(*pwalletMain, address.Get()))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Staking address must be in wallet.");
+
+    if (!scrapeAddress.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid scrape address.");
+
+    string oldScrapeAddress;
+    bool warn = false;
+    if (pwalletMain->ReadScrapeAddress(strAddress, oldScrapeAddress)) {
+        if (strScrapeAddress == oldScrapeAddress)
+            throw runtime_error(strprintf("Scrape address is already set to %s", oldScrapeAddress.c_str()));
+
+        warn = true;
+    }
+
+    if (pwalletMain->WriteScrapeAddress(strAddress, strScrapeAddress)) {
+        if (warn)
+            return strprintf("Warning overwriting %s with %s", oldScrapeAddress.c_str(), strScrapeAddress.c_str());
+
+        Object obj;
+        obj.push_back(Pair(strAddress, strScrapeAddress));
+        return obj;
+    }
+
+    // This should never happen.
+    throw JSONRPCError(-1, "setscrapeaddress: unknown error");
+}
+
+Value getscrapeaddress(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "getscrapeaddress <staking address>\n"
+            "Get the auto scrape address for a given address."
+        );
+
+    string strAddress = params[0].get_str();
+    CBitcoinAddress address(strAddress);
+
+    if (!address.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address.");
+
+    if (!IsMine(*pwalletMain, address.Get()))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Staking address must be in wallet.");
+
+    string strScrapeAddress;
+    if (!pwalletMain->ReadScrapeAddress(strAddress, strScrapeAddress)) {
+        string ret = "No scrape address set for address ";
+        ret += strAddress;
+        throw JSONRPCError(RPC_WALLET_ERROR, ret);
+    }
+
+    Object obj;
+    obj.push_back(Pair(strAddress, strScrapeAddress));
+    return obj;
+}
+
+Value listscrapeaddresses(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+            "listscrapeaddresses\n"
+            "List all the defined scrape addresses."
+        );
+
+    Object obj;
+    LOCK(pwalletMain->cs_wallet);
+    CWalletDB(pwalletMain->strWalletFile).DumpScrapeAddresses(obj);
+
+    return obj;
+}
+
+Value deletescrapeaddress(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1) {
+        string ret = "deletescrapeaddress <staking address>\nDelete the auto scrape address for a given address.";
+        if (pwalletMain->IsCrypted())
+            ret += "requires wallet passphrase to be set with walletpassphrase first";
+
+        throw runtime_error(ret);
+    }
+
+    EnsureWalletIsUnlocked();
+
+    string strAddress = params[0].get_str();
+    CBitcoinAddress address(strAddress);
+
+    if (!address.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address.");
+
+    if (!IsMine(*pwalletMain, address.Get()))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Staking address must be in wallet.");
+
+    if (!pwalletMain->HasScrapeAddress(strAddress)) {
+        string ret = "No scrape address set for address ";
+        ret += strAddress;
+        throw JSONRPCError(RPC_WALLET_ERROR, ret);
+    }
+
+    return pwalletMain->EraseScrapeAddress(strAddress);
+}
+
+Value listreactordata(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "listreactordata\n"
+            "List the data regarding a given reactor address (only lists\n"
+            "valid addresses found in wallet).");
+
+    string strAddress = params[0].get_str();
+    CBitcoinAddress address(strAddress);
+
+    if (!IsMine(*pwalletMain, address.Get()))
+        throw runtime_error("Address must be in wallet.");
+
+    string reactordbfile = GetReactorDBFile();
+    if (!CReactorDB(reactordbfile).CheckReactorAddr(strAddress))
+        throw runtime_error("Address is not a valid reactor address.");
+
+    int64 reactorStakeValue;
+    unsigned int valid_starting;
+    unsigned int valid_until;
+    CScript scriptReactorAddress;
+    scriptReactorAddress.SetDestination(address.Get());
+    if (!CReactorDB(reactordbfile).IsReactor(reactordbfile, scriptReactorAddress, reactorStakeValue, valid_starting, valid_until))
+        throw runtime_error("Address is not a valid reactor address.");
+
+    Object obj;
+    obj.push_back(Pair("Address", strAddress));
+    if (reactorStakeValue == 15000) {
+        obj.push_back(Pair("Value 1", 3000));
+        obj.push_back(Pair("Value 2", (int)reactorStakeValue));
+    } else {
+        obj.push_back(Pair("Value", (int)reactorStakeValue));
+    }
+    obj.push_back(Pair("Valid starting", (int)valid_starting));
+
+    if (valid_until == (unsigned int)-1) {
+        obj.push_back(Pair("Expires", "never"));
+    } else {
+        obj.push_back(Pair("Expires", (int)valid_until));
+    }
+
+    return obj;
 }

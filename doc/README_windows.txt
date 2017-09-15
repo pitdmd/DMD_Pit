@@ -1,10 +1,6 @@
+Diamond 2.0.5.7
 
-Copyright (c) 2013-2014 Diamond Developers
-
-
-Diamond 0.3.0 BETA
-
-Copyright (c) 2013-2014 Diamond Developers
+Copyright (c) 2013-2015 Diamond Foundation
 Copyright (c) 2013 NovaCoin Developers
 Copyright (c) 2011-2012 Bitcoin Developers
 Distributed under the MIT/X11 software license, see the accompanying
@@ -47,6 +43,6 @@ Start up the new diamondd.
 
 
 See the documentation/wiki at the Diamond site:
-  http://diamond.cc/
+  http://bit.diamonds/
 for help and more information.
 

@@ -31,6 +31,7 @@ typedef int pid_t; /* define for Windows compatibility */
 
 typedef long long  int64;
 typedef unsigned long long  uint64;
+typedef unsigned int  uint;
 
 static const int64 COIN = 1000000;
 static const int64 CENT = 10000;
@@ -133,25 +134,6 @@ inline void Sleep(int64 n)
 #define ATTR_WARN_PRINTF(X,Y)
 #endif
 
-
-
-inline void MilliSleep(int64 n)
-{
-// Boost's sleep_for was uninterruptable when backed by nanosleep from 1.50
-// until fixed in 1.52. Use the deprecated sleep method for the broken case.
-// See: https://svn.boost.org/trac/boost/ticket/7238
-
-#if BOOST_VERSION >= 105000 && (!defined(BOOST_HAS_NANOSLEEP) || BOOST_VERSION >= 105200)
-    boost::this_thread::sleep_for(boost::chrono::milliseconds(n));
-#else
-    boost::this_thread::sleep(boost::posix_time::milliseconds(n));
-#endif
-}
-
-
-
-
-
 extern std::map<std::string, std::string> mapArgs;
 extern std::map<std::string, std::vector<std::string> > mapMultiArgs;
 extern bool fDebug;
@@ -168,6 +150,7 @@ extern bool fTestNet;
 extern bool fNoListen;
 extern bool fLogTimestamps;
 extern bool fReopenDebugLog;
+extern bool fStakingOnly;
 
 void RandAddSeed();
 void RandAddSeedPerfmon();
@@ -473,13 +456,20 @@ public:
         return (*this);
     }
 
-    // invalidates the object
-    uint256 GetHash() {
+    /* SHA-256 */
+    uint256 GetHash1() {
         uint256 hash1;
-        SHA256_Final((unsigned char*)&hash1, &ctx);
+        SHA256_Final((unsigned char *) &hash1, &ctx);
+        return(hash1);
+    }
+
+    /* SHA-256d */
+    uint256 GetHash2() {
+        uint256 hash1;
+        SHA256_Final((unsigned char *) &hash1, &ctx);
         uint256 hash2;
-        SHA256((unsigned char*)&hash1, sizeof(hash1), (unsigned char*)&hash2);
-        return hash2;
+        SHA256((unsigned char *) &hash1, sizeof(hash1), (unsigned char *) &hash2);
+        return(hash2);
     }
 
     template<typename T>
@@ -526,11 +516,17 @@ inline uint256 Hash(const T1 p1begin, const T1 p1end,
 }
 
 template<typename T>
-uint256 SerializeHash(const T& obj, int nType=SER_GETHASH, int nVersion=PROTOCOL_VERSION)
-{
+uint256 SerializeHash1(const T& obj, int nType = SER_GETHASH, int nVersion = PROTOCOL_VERSION) {
     CHashWriter ss(nType, nVersion);
     ss << obj;
-    return ss.GetHash();
+    return(ss.GetHash1());
+}
+
+template<typename T>
+uint256 SerializeHash2(const T& obj, int nType = SER_GETHASH, int nVersion = PROTOCOL_VERSION) {
+    CHashWriter ss(nType, nVersion);
+    ss << obj;
+    return(ss.GetHash2());
 }
 
 inline uint160 Hash160(const std::vector<unsigned char>& vch)
@@ -552,6 +548,7 @@ private:
     std::vector<T> vValues;
     std::vector<T> vSorted;
     unsigned int nSize;
+    T tInitial;
 public:
     CMedianFilter(unsigned int size, T initial_value):
         nSize(size)
@@ -559,6 +556,7 @@ public:
         vValues.reserve(size);
         vValues.push_back(initial_value);
         vSorted = vValues;
+        tInitial = initial_value;
     }
 
     void input(T value)
@@ -568,6 +566,27 @@ public:
             vValues.erase(vValues.begin());
         }
         vValues.push_back(value);
+
+        vSorted.resize(vValues.size());
+        std::copy(vValues.begin(), vValues.end(), vSorted.begin());
+        std::sort(vSorted.begin(), vSorted.end());
+    }
+
+    // remove last instance of a value
+    void removeLast(T value)
+    {
+        for (int i = vValues.size()-1; i >= 0; --i)
+        {
+            if (vValues[i] == value)
+            {
+                vValues.erase(vValues.begin()+i);
+                break;
+            }
+        }
+        if (vValues.empty())
+        {
+            vValues.push_back(tInitial);
+        }
 
         vSorted.resize(vValues.size());
         std::copy(vValues.begin(), vValues.end(), vSorted.begin());

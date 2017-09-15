@@ -36,7 +36,10 @@ namespace Checkpoints
             (317997, uint256("0x000000007458dc82830320e592b9e0585efa68d01c3de479c14843af4942528e"))
             (386222, uint256("0x000006a8c97fcba6e69278f2c5e21c2266ed12ecea07045e9214cb23f3d5eeaa"))
             (386232, uint256("0x000004bf5ce28d4bf81a7f993de4443d5a5b2bd3290e7935f3096e5b7c40fe36"))
-
+            (443923, uint256("0x0000000001f9b10759fa67418e4c20a772ec39c3eff33742cb5899c7b50d7348"))
+            (468356, uint256("0x000000000543a19eaf97aa0ad933cb6423dedacb09786f4891126ac02bd8b7d4"))
+            (895493, uint256("0x0000000003140f322a3913d0d67b77b462b0bcdd2a4a0ec0cd791de743cf9202"))
+           (1500000, uint256("0x0000000008040b20b2e7ebdea7cf0c57d43195ec1da886b652339cb87253f369"))
 		;
 
     static MapCheckpoints mapCheckpointsTestnet =
@@ -359,8 +362,8 @@ namespace Checkpoints
         // sync-checkpoint should always be accepted block
         assert(mapBlockIndex.count(hashSyncCheckpoint));
         const CBlockIndex* pindexSync = mapBlockIndex[hashSyncCheckpoint];
-        return (nBestHeight >= pindexSync->nHeight + nCoinbaseMaturity ||
-                pindexSync->GetBlockTime() + nStakeMinAge < GetAdjustedTime());
+        return((nBestHeight >= pindexSync->nHeight + nCoinbaseMaturity) ||
+          (pindexSync->GetBlockTime() + nStakeMinAgeFixed < GetAdjustedTime()));
     }
 
     // Is the sync-checkpoint too old?

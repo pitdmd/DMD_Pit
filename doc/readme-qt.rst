@@ -1,20 +1,20 @@
-Bitcoin-qt: Qt4 GUI for Bitcoin
+Diamond-qt: Qt5 GUI for Diamond
 ===============================
 
 Build instructions
 ===================
 
-Debian
+Debian (i386, amd64)
 -------
 
-First, make sure that the required packages for Qt4 development of your
-distribution are installed, for Debian and Ubuntu these are:
+First, make sure that the required packages for Qt5 development of your
+distribution are installed, for Debian and Ubuntu (i386, amd64) these are:
 
 ::
 
-    apt-get install qt4-qmake libqt4-dev build-essential libboost-dev libboost-system-dev \
+    apt-get install qt5-qmake libqt5-dev build-essential libboost-dev libboost-system-dev \
         libboost-filesystem-dev libboost-program-options-dev libboost-thread-dev \
-        libssl-dev libdb4.8++-dev
+        libssl-dev libdb4.8++-dev libminiupnpc-dev libminiupnpc8
 
 then execute the following:
 
@@ -23,9 +23,28 @@ then execute the following:
     qmake
     make
 
-Alternatively, install Qt Creator and open the `bitcoin-qt.pro` file.
+Debian (armv6l, armv7l)
+-------
 
-An executable named `bitcoin-qt` will be built.
+First, make sure that the required packages for Qt5 development of your
+distribution are installed, for Debian and Ubuntu (i386, amd64) these are:
+
+::
+
+    apt-get install qt5-qmake libqt5-dev build-essential libboost-dev libboost-system-dev \
+        libboost-filesystem-dev libboost-program-options-dev libboost-thread-dev \
+        libssl-dev libdb5.1++-dev libminiupnpc-dev libminiupnpc8
+
+then execute the following:
+
+::
+
+    qmake
+    make
+
+Alternatively, install Qt Creator and open the `diamond.pro` file.
+
+An executable named `diamond-qt` will be built.
 
 
 Windows
@@ -59,7 +78,7 @@ Mac OS X
 ::
 
 	sudo port selfupdate
-	sudo port install boost db48 miniupnpc
+        sudo port install boost db48 miniupnpc qrencode
 
 - Open the .pro file in Qt Creator and build as normal (cmd-B)
 
@@ -138,7 +157,7 @@ Ubuntu 11.10 warning
 ====================
 
 Ubuntu 11.10 has a package called 'qt-at-spi' installed by default.  At the time of writing, having that package
-installed causes bitcoin-qt to crash intermittently.  The issue has been reported as `launchpad bug 857790`_, but
+installed causes Diamond-qt to crash intermittently.  The issue has been reported as `launchpad bug 857790`_, but
 isn't yet fixed.
 
 Until the bug is fixed, you can remove the qt-at-spi package to work around the problem, though this will presumably

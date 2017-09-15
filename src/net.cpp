@@ -25,7 +25,7 @@
 using namespace std;
 using namespace boost;
 
-static const int MAX_OUTBOUND_CONNECTIONS = 12;
+static const int MAX_OUTBOUND_CONNECTIONS = 16;
 
 void ThreadMessageHandler2(void* parg);
 void ThreadSocketHandler2(void* parg);
@@ -57,7 +57,7 @@ static bool vfLimited[NET_MAX] = {};
 static CNode* pnodeLocalHost = NULL;
 CAddress addrSeenByPeer(CService("0.0.0.0", 0), nLocalServices);
 uint64 nLocalHostNonce = 0;
-array<int, THREAD_MAX> vnThreadsRunning;
+boost::array<int, THREAD_MAX> vnThreadsRunning;
 static std::vector<SOCKET> vhListenSocket;
 CAddrMan addrman;
 
@@ -174,14 +174,16 @@ bool RecvLine(SOCKET hSocket, string& strLine)
             if (nBytes == 0)
             {
                 // socket closed
-                printf("socket closed\n");
+                if (fDebugNet)
+                    printf("socket closed\n");
                 return false;
             }
             else
             {
                 // socket error
                 int nErr = WSAGetLastError();
-                printf("recv failed: %d\n", nErr);
+                if (fDebugNet)
+                    printf("recv failed: %d\n", nErr);
                 return false;
             }
         }
@@ -485,9 +487,10 @@ CNode* ConnectNode(CAddress addrConnect, const char *pszDest, int64 nTimeout)
 
 
     /// debug print
-    printf("trying connection %s lastseen=%.1fhrs\n",
-        pszDest ? pszDest : addrConnect.ToString().c_str(),
-        pszDest ? 0 : (double)(GetAdjustedTime() - addrConnect.nTime)/3600.0);
+    if (fDebugNet)
+        printf("trying connection %s lastseen=%.1fhrs\n",
+            pszDest ? pszDest : addrConnect.ToString().c_str(),
+            pszDest ? 0 : (double)(GetAdjustedTime() - addrConnect.nTime)/3600.0);
 
     // Connect
     SOCKET hSocket;
@@ -496,7 +499,8 @@ CNode* ConnectNode(CAddress addrConnect, const char *pszDest, int64 nTimeout)
         addrman.Attempt(addrConnect);
 
         /// debug print
-        printf("connected %s\n", pszDest ? pszDest : addrConnect.ToString().c_str());
+        if (fDebugNet)
+            printf("connected %s\n", pszDest ? pszDest : addrConnect.ToString().c_str());
 
         // Set to non-blocking
 #ifdef WIN32
@@ -534,7 +538,8 @@ void CNode::CloseSocketDisconnect()
     fDisconnect = true;
     if (hSocket != INVALID_SOCKET)
     {
-        printf("disconnecting node %s\n", addrName.c_str());
+        if (fDebugNet)
+            printf("disconnecting node %s\n", addrName.c_str());
         closesocket(hSocket);
         hSocket = INVALID_SOCKET;
         vRecv.clear();
@@ -558,10 +563,6 @@ void CNode::PushVersion()
                 nLocalHostNonce, FormatSubVersion(CLIENT_NAME, CLIENT_VERSION, std::vector<string>()), nBestHeight);
 }
 
-
-
-
-
 std::map<CNetAddr, int64> CNode::setBanned;
 CCriticalSection CNode::cs_setBanned;
 
@@ -570,21 +571,38 @@ void CNode::ClearBanned()
     setBanned.clear();
 }
 
-bool CNode::IsBanned(CNetAddr ip)
+// return how many seconds left, if banned
+int64 CNode::IsBanned(CNetAddr ip)
 {
-    bool fResult = false;
     {
         LOCK(cs_setBanned);
         std::map<CNetAddr, int64>::iterator i = setBanned.find(ip);
         if (i != setBanned.end())
         {
             int64 t = (*i).second;
-            if (GetTime() < t)
-                fResult = true;
+            int64 left = t - GetTime();
+            if (left < 0)
+                left=0;
+            return left;
         }
     }
-    return fResult;
+    return 0;
 }
+
+bool CNode::ConnectAllowed(CNetAddr ip)
+{
+    const string strAddress = ip.ToString();
+    const vector<string>& vAllow = mapMultiArgs["-connectallowip"];
+    // no ACL specified, everyone plays
+    if (vAllow.empty())
+        return true;
+    BOOST_FOREACH(string strAllow, vAllow)
+        if (WildcardMatch(strAddress, strAllow))
+            return true;
+    return false;
+}
+
+extern CMedianFilter<int> cPeerBlockCounts;
 
 bool CNode::Misbehaving(int howmuch)
 {
@@ -605,6 +623,9 @@ bool CNode::Misbehaving(int howmuch)
                 setBanned[addr] = banTime;
         }
         CloseSocketDisconnect();
+
+        cPeerBlockCounts.removeLast(nStartingHeight); // remove this node's reported number of blocks
+
         return true;
     } else
         printf("Misbehaving: %s (%d -> %d)\n", addr.ToString().c_str(), nMisbehavior-howmuch, nMisbehavior);
@@ -787,7 +808,8 @@ void ThreadSocketHandler2(void* parg)
             if (have_fds)
             {
                 int nErr = WSAGetLastError();
-                printf("socket select error %d\n", nErr);
+                if (fDebugNet)
+                    printf("socket select error %d\n", nErr);
                 for (unsigned int i = 0; i <= hSocketMax; i++)
                     FD_SET(i, &fdsetRecv);
             }
@@ -812,6 +834,7 @@ void ThreadSocketHandler2(void* parg)
             SOCKET hSocket = accept(hListenSocket, (struct sockaddr*)&sockaddr, &len);
             CAddress addr;
             int nInbound = 0;
+            int bsec = 0; // how many seconds left in a ban
 
             if (hSocket != INVALID_SOCKET)
                 if (!addr.SetSockAddr((const struct sockaddr*)&sockaddr))
@@ -838,9 +861,14 @@ void ThreadSocketHandler2(void* parg)
                         closesocket(hSocket);
                 }
             }
-            else if (CNode::IsBanned(addr))
+            else if (!CNode::ConnectAllowed(addr))
             {
-                printf("connection from %s dropped (banned)\n", addr.ToString().c_str());
+                printf("connection from %s dropped (forbidden)\n", addr.ToString().c_str());
+                closesocket(hSocket);
+            }
+            else if ((bsec = CNode::IsBanned(addr)))
+            {
+                printf("connection from %s dropped (banned %d sec)\n", addr.ToString().c_str(), bsec);
                 closesocket(hSocket);
             }
             else
@@ -1031,10 +1059,14 @@ void ThreadMapPort2(void* parg)
 #ifndef UPNPDISCOVER_SUCCESS
     /* miniupnpc 1.5 */
     devlist = upnpDiscover(2000, multicastif, minissdpdpath, 0);
-#else
+#elif MINIUPNPC_API_VERSION < 14
     /* miniupnpc 1.6 */
     int error = 0;
     devlist = upnpDiscover(2000, multicastif, minissdpdpath, 0, 0, &error);
+#else
+    /* miniupnpc 1.9 */
+    int error = 0;
+    devlist = upnpDiscover(2000, multicastif, minissdpdpath, 0, 0, 2, &error);
 #endif
 
     struct UPNPUrls urls;
@@ -1149,6 +1181,8 @@ void MapPort()
 // The first name is used as information source for addrman.
 // The second name should resolve to a list of seed addresses.
 static const char *strDNSSeed[][2] = {
+    {"seed.bit.diamonds", "seed.bit.diamonds"},
+    {"dmdseed.danbo.bg", "dmdseed.danbo.bg"},
     {"", ""},
 };
 
@@ -1195,6 +1229,7 @@ void ThreadDNSAddressSeed2(void* parg)
                         int nOneDay = 24*3600;
                         CAddress addr = CAddress(CService(ip, GetDefaultPort()));
                         addr.nTime = GetTime() - 3*nOneDay - GetRand(4*nOneDay); // use a random age between 3 and 7 days old
+                        SetReachable(addr.GetNetwork());
                         vAdd.push_back(addr);
                         found++;
                     }
@@ -1220,6 +1255,7 @@ void ThreadDNSAddressSeed2(void* parg)
 
 unsigned int pnSeed[] =
 {
+    0x131544c1
 };
 
 void DumpAddresses()
@@ -1380,6 +1416,7 @@ void ThreadOpenConnections2(void* parg)
                 memcpy(&ip, &pnSeed[i], sizeof(ip));
                 CAddress addr(CService(ip, GetDefaultPort()));
                 addr.nTime = GetTime()-GetRand(nOneWeek)-nOneWeek;
+                SetReachable(addr.GetNetwork());
                 vAdd.push_back(addr);
             }
             addrman.Add(vAdd, CNetAddr("127.0.0.1"));
@@ -1845,17 +1882,11 @@ void StartNode(void* parg)
     // Start threads
     //
 
-
     if (!GetBoolArg("-dnsseed", true))
         printf("DNS seeding disabled\n");
     else
         if (!NewThread(ThreadDNSAddressSeed, NULL))
             printf("Error: NewThread(ThreadDNSAddressSeed) failed\n");
-
-    if (!GetBoolArg("-dnsseed", false))
-        printf("DNS seeding disabled\n");
-    if (GetBoolArg("-dnsseed", false))
-        printf("DNS seeding NYI\n");
 
     // Map ports with UPnP
     if (fUseUPnP)

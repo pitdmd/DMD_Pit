@@ -9,6 +9,7 @@
 #include "util.h"
 #include "main.h"
 #include "kernel.h"
+#include "auxpow.h"
 #include <boost/version.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
@@ -85,7 +86,11 @@ bool CDBEnv::Open(boost::filesystem::path pathEnv_)
     dbenv.set_cachesize(nDbCache / 1024, (nDbCache % 1024)*1048576, 1);
     dbenv.set_lg_bsize(1048576);
     dbenv.set_lg_max(10485760);
-    dbenv.set_lk_max_locks(10000);
+
+    // Bugfix: Bump lk_max_locks default to 537000, to safely handle reorgs with up to 5 blocks reversed
+    // dbenv.set_lk_max_locks(10000);
+    dbenv.set_lk_max_locks(537000);
+
     dbenv.set_lk_max_objects(10000);
     dbenv.set_errfile(fopen(pathErrorFile.string().c_str(), "a")); /// debug
     dbenv.set_flags(DB_AUTO_COMMIT, 1);
@@ -106,6 +111,30 @@ bool CDBEnv::Open(boost::filesystem::path pathEnv_)
 
     fDbEnvInit = true;
     fMockDb = false;
+
+    // Check that the number of locks is sufficient (to prevent chain fork possibility, read http://bitcoin.org/may15 for more info)
+    u_int32_t nMaxLocks;
+    if (!dbenv.get_lk_max_locks(&nMaxLocks))
+    {
+        int nBlocks, nDeepReorg;
+        std::string strMessage;
+
+        nBlocks = nMaxLocks / 48768;
+        nDeepReorg = (nBlocks - 1) / 2;
+
+        printf("Final lk_max_locks is %lu, sufficient for (worst case) %d block%s in a single transaction (up to a %d-deep reorganization)\n", (unsigned long)nMaxLocks, nBlocks, (nBlocks == 1) ? "" : "s", nDeepReorg);
+        if (nDeepReorg < 3)
+        {
+            if (nBlocks < 1)
+                strMessage = strprintf(("Warning: DB_CONFIG has set_lk_max_locks %lu, which may be too low for a single block. If this limit is reached, Diamond may stop working."), (unsigned long)nMaxLocks);
+            else
+                strMessage = strprintf(("Warning: DB_CONFIG has set_lk_max_locks %lu, which may be too low for a common blockchain reorganization. If this limit is reached, Diamond may stop working."), (unsigned long)nMaxLocks);
+
+            strMiscWarning = strMessage;
+            printf("*** %s\n", strMessage.c_str());
+        }
+    }
+
     return true;
 }
 
@@ -622,7 +651,6 @@ bool CTxDB::LoadBlockIndex()
 
     // Calculate bnChainTrust
     vector<pair<int, CBlockIndex*> > vSortedByHeight;
-    map<uint256, CBlockIndex*> a = mapBlockIndex;
     vSortedByHeight.reserve(mapBlockIndex.size());
     BOOST_FOREACH(const PAIRTYPE(uint256, CBlockIndex*)& item, mapBlockIndex)
     {
@@ -652,7 +680,6 @@ bool CTxDB::LoadBlockIndex()
     pindexBest = mapBlockIndex[hashBestChain];
     nBestHeight = pindexBest->nHeight;
     bnBestChainTrust = pindexBest->bnChainTrust;
-
     printf("LoadBlockIndex(): hashBestChain=%s  height=%d  trust=%s  date=%s\n",
       hashBestChain.ToString().substr(0,20).c_str(), nBestHeight, bnBestChainTrust.ToString().c_str(),
       DateTimeStrFormat("%x %H:%M:%S", pindexBest->GetBlockTime()).c_str());
@@ -677,13 +704,16 @@ bool CTxDB::LoadBlockIndex()
     map<pair<unsigned int, unsigned int>, CBlockIndex*> mapBlockPos;
     for (CBlockIndex* pindex = pindexBest; pindex && pindex->pprev; pindex = pindex->pprev)
     {
+        // calculate totalCoin for other routines that get called
+        totalCoin = pindex->nMoneySupply / COIN;
         if (fRequestShutdown || pindex->nHeight < nBestHeight-nCheckDepth)
             break;
         CBlock block;
         if (!block.ReadFromDisk(pindex))
             return error("LoadBlockIndex() : block.ReadFromDisk failed");
         // check level 1: verify block validity
-        if (nCheckLevel>0 && !block.CheckBlock())
+        // DK properly pass totalCoin
+        if (nCheckLevel>0 && !block.CheckBlock(true, true, totalCoin))
         {
             printf("LoadBlockIndex() : *** found bad block at %d, hash=%s\n", pindex->nHeight, pindex->GetBlockHash().ToString().c_str());
             pindexFork = pindex->pprev;
@@ -805,10 +835,12 @@ bool CTxDB::LoadBlockIndexGuts()
     if (!pcursor)
         return false;
 
+    int count=0;
     // Load mapBlockIndex
     unsigned int fFlags = DB_SET_RANGE;
     while (true)
     {
+        count++;
         // Read next record
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         if (fFlags == DB_SET_RANGE)
@@ -824,74 +856,116 @@ bool CTxDB::LoadBlockIndexGuts()
         // Unserialize
 
         try {
-        string strType;
-        ssKey >> strType;
-        if (strType == "blockindex" && !fRequestShutdown)
-        {
-            CDiskBlockIndex diskindex;
-            ssValue >> diskindex;
+            string strType;
+            ssKey >> strType;
+            if (strType == "blockindex" && !fRequestShutdown)
+            {
+                CDiskBlockIndex diskindex;
+                ssValue >> diskindex;
 
-            totalCoinDB = diskindex.nMoneySupply / COIN;
-            // Construct block index object
-            uint256 blockHash;
-            if(totalCoinDB <= VALUE_CHANGE)
-                blockHash = diskindex.GetBlockHashScrypt();
+                totalCoin = diskindex.nMoneySupply / COIN;
+                uint256 blockHash = diskindex.GetBlockHash();
+
+                // clean up junk from the block index
+                if (totalCoin == 0) {
+                    // printf("money supply = 0\n");
+                    // diskindex.print();
+                    if (blockHash != (!fTestNet ? hashGenesisBlock : hashGenesisBlockTestNet))
+                    {
+                        // not the genesis block, garbage anyway
+                        // printf("deleted\n");
+                        continue;
+                    }
+                }
+                if(!fTestNet && (totalCoin == VALUE_CHANGE)) {
+//                    printf("height = %d, hash = %s\n", diskindex.nHeight, diskindex.GetBlockHash().ToString().c_str());
+//                    diskindex.print();
+                    if (diskindex.hashNext == uint256("0x92134c4608025b6bd945731158391079590d0e7e0c60bd7d09a50c0b0251c6ac"))
+                    {
+                        // assign proper hash value
+//                        printf("changed\n");
+                        diskindex.hashNext = uint256("0x00000d652b612a94e1c830bf4e05106438ea6b53372b29206f0b820d91a9b67b");
+                    }
+                    if (diskindex.GetBlockHash() == uint256("0xe12ddb2c35d84403b0a045574ecce223f7e2f0db4506e76ed3d43bc464ace40c"))
+                    {
+                        // this hash version should not be here, delete
+//                        printf("deleted\n");
+                        continue;
+                    }
+                }
+                // end cleanup
+
+                // Construct block index object
+                CBlockIndex* pindexNew = InsertBlockIndex(blockHash);
+                pindexNew->pprev          = InsertBlockIndex(diskindex.hashPrev);
+                pindexNew->pnext          = InsertBlockIndex(diskindex.hashNext);
+                pindexNew->nFile          = diskindex.nFile;
+                pindexNew->nBlockPos      = diskindex.nBlockPos;
+                pindexNew->nHeight        = diskindex.nHeight;
+                pindexNew->nMint          = diskindex.nMint;
+                pindexNew->nMoneySupply   = diskindex.nMoneySupply;
+                pindexNew->nFlags         = diskindex.nFlags;
+                pindexNew->nStakeModifier = diskindex.nStakeModifier;
+                pindexNew->prevoutStake   = diskindex.prevoutStake;
+                pindexNew->nStakeTime     = diskindex.nStakeTime;
+                pindexNew->hashProofOfStake = diskindex.hashProofOfStake;
+                pindexNew->nVersion       = diskindex.nVersion;
+                pindexNew->hashMerkleRoot = diskindex.hashMerkleRoot;
+                pindexNew->nTime          = diskindex.nTime;
+                pindexNew->nBits          = diskindex.nBits;
+                pindexNew->nNonce         = diskindex.nNonce;
+                pindexNew->auxpow         = diskindex.auxpow;
+
+                if(!fTestNet && (totalCoin == VALUE_CHANGE))
+                    pindexSave = pindexNew;
+                if(!fTestNet && (totalCoin == VALUE_CHANGE + 1))
+                    pindexSaveNext = pindexNew;
+
+                // Watch for genesis block
+                if (pindexGenesisBlock == NULL && blockHash == (!fTestNet ? hashGenesisBlock : hashGenesisBlockTestNet))
+                    pindexGenesisBlock = pindexNew;
+
+                if (!pindexNew->CheckIndex())
+                    return error("LoadBlockIndex() : CheckIndex failed at %d", pindexNew->nHeight);
+
+                // ppcoin: build setStakeSeen
+                if (pindexNew->IsProofOfStake())
+                    setStakeSeen.insert(make_pair(pindexNew->prevoutStake, pindexNew->nStakeTime));
+            }
             else
-                blockHash =  diskindex.GetBlockHashGroest();
-
-            // Construct block index object
-            CBlockIndex* pindexNew = InsertBlockIndex(blockHash);
-            pindexNew->pprev          = InsertBlockIndex(diskindex.hashPrev);
-            pindexNew->pnext          = InsertBlockIndex(diskindex.hashNext);
-            pindexNew->nFile          = diskindex.nFile;
-            pindexNew->nBlockPos      = diskindex.nBlockPos;
-            pindexNew->nHeight        = diskindex.nHeight;
-            pindexNew->nMint          = diskindex.nMint;
-            pindexNew->nMoneySupply   = diskindex.nMoneySupply;
-            pindexNew->nFlags         = diskindex.nFlags;
-            pindexNew->nStakeModifier = diskindex.nStakeModifier;
-            pindexNew->prevoutStake   = diskindex.prevoutStake;
-            pindexNew->nStakeTime     = diskindex.nStakeTime;
-            pindexNew->hashProofOfStake = diskindex.hashProofOfStake;
-            pindexNew->nVersion       = diskindex.nVersion;
-            pindexNew->hashMerkleRoot = diskindex.hashMerkleRoot;
-            pindexNew->nTime          = diskindex.nTime;
-            pindexNew->nBits          = diskindex.nBits;
-            pindexNew->nNonce         = diskindex.nNonce;
-
-            if(pindexNew->nMoneySupply / COIN == VALUE_CHANGE)
             {
-                pindexSave = pindexNew;
+                break; // if shutdown requested or finished loading block index
             }
-            if(pindexNew->nMoneySupply / COIN == VALUE_CHANGE + 1)
-            {
-                pindexSaveNext = pindexNew;
-            }
-
-            // Watch for genesis block
-            if (pindexGenesisBlock == NULL && diskindex.GetBlockHash() == (!fTestNet ? hashGenesisBlock : hashGenesisBlockTestNet))
-                pindexGenesisBlock = pindexNew;
-
-            if (!pindexNew->CheckIndex())
-                return error("LoadBlockIndex() : CheckIndex failed at %d", pindexNew->nHeight);
-
-            // ppcoin: build setStakeSeen
-            if (pindexNew->IsProofOfStake())
-                setStakeSeen.insert(make_pair(pindexNew->prevoutStake, pindexNew->nStakeTime));
-        }
-        else
-        {
-            break; // if shutdown requested or finished loading block index
-        }
         }    // try
         catch (std::exception &e) {
             return error("%s() : deserialize error", __PRETTY_FUNCTION__);
         }
     }
+
+//    printf("loaded %d in block index\n", count);
+
     if(pindexSaveNext != NULL && pindexSave != NULL && pindexSave->pnext == NULL)
+    {
+//        printf("linked pnext at switch block\n");
         pindexSave->pnext = pindexSaveNext;
+    }
 
     pcursor->close();
+
+#if 0
+    printf ("verify mapBlockIndex\n");
+    count=0;
+    BOOST_FOREACH(const PAIRTYPE(uint256, CBlockIndex*)& item, mapBlockIndex)
+    {
+        CBlockIndex* pindex = item.second;
+        if (pindex->nHeight == 0) {
+            printf("nHeight=0 count=%d\n", count);
+            pindex->print();
+        }
+        count++;
+    }
+    printf("end verify\n");
+#endif
 
     return true;
 }
